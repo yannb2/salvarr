@@ -101,6 +101,13 @@ Salvarr must see the files under the same paths as Radarr and Sonarr (`/movies`,
 Then open `http://<host>:8184`. The image is on the GitHub Container Registry:
 `dev` follows `main`, `latest` and `0.1.0` come from release tags.
 
+### Dashboard
+
+`GET /api/stats` returns totals for a dashboard such as Homepage's custom API
+widget (read-only, no key): `files`, `totalBytes`, `movies`, `episodes`,
+`deletedToday` (last 24 hours), `expiringSoon` (deleted automatically within
+24 hours), `bins` and `scannedUtc`.
+
 ### Settings
 
 Everything has a default, and any setting can be changed with an environment
