@@ -35,6 +35,14 @@ public sealed class MediaDetails
     /// <summary>Fonts and cover art.</summary>
     public int Attachments { get; init; }
 
+    /// <summary>From dovi_tool, for the first frames. Null without Dolby Vision or when dovi_tool failed.</summary>
+    public DolbyVisionDetails? DolbyVision { get; set; }
+
+    /// <summary>Why <see cref="DolbyVision"/> is missing on a Dolby Vision file.</summary>
+    public string? DolbyVisionError { get; set; }
+
+    public bool HasDolbyVision => Video.Any(v => v.DolbyVisionProfile != null);
+
     public IEnumerable<TrackInfo> Video => Tracks.Where(t => t.Type == TrackType.Video);
     public IEnumerable<TrackInfo> Audio => Tracks.Where(t => t.Type == TrackType.Audio);
     public IEnumerable<TrackInfo> Subtitles => Tracks.Where(t => t.Type == TrackType.Subtitles);
@@ -92,6 +100,9 @@ public sealed class TrackInfo
     /// <summary>True for profile 7 with an enhancement layer (FEL or MEL; ffprobe cannot tell which).</summary>
     public bool HasEnhancementLayer { get; init; }
 
+    /// <summary>"FEL" or "MEL", from dovi_tool. Null when it was not read.</summary>
+    public string? EnhancementLayer { get; set; }
+
     // Audio
     public int? Channels { get; init; }
 
@@ -116,7 +127,7 @@ public sealed class TrackInfo
             var parts = new List<string>();
             if (DolbyVisionProfile != null)
             {
-                parts.Add(HasEnhancementLayer ? $"DV {DolbyVisionProfile} (EL)" : $"DV {DolbyVisionProfile}");
+                parts.Add(HasEnhancementLayer ? $"DV {DolbyVisionProfile} {EnhancementLayer ?? "(EL)"}" : $"DV {DolbyVisionProfile}");
             }
 
             if (HdrFormat != null)

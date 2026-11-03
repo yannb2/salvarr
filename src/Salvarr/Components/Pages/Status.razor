@@ -197,7 +197,8 @@
         _tools =
         [
             (MediaProbe.FfprobeExecutable, await FirstLine(MediaProbe.FfprobeExecutable, "-version")),
-            (MediaProbe.MediaInfoExecutable, await FirstLine(MediaProbe.MediaInfoExecutable, "--version", last: true))
+            (MediaProbe.MediaInfoExecutable, await FirstLine(MediaProbe.MediaInfoExecutable, "--version", last: true)),
+            (DoviTool.Executable, await FirstLine(DoviTool.Executable, "--version"))
         ];
         _scan = await Bins.RescanAsync(refreshArr: true);
     }
