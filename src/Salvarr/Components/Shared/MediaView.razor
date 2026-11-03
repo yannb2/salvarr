@@ -48,6 +48,7 @@
                         <th>Language</th>
                         <th>Format</th>
                         <th class="text-end text-nowrap">Bit rate</th>
+                        <th class="text-end text-nowrap">Size</th>
                         <th>Name</th>
                     </tr>
                     </thead>
@@ -66,6 +67,16 @@
                                 else if (track.Type == TrackType.Audio && Probe.AudioBitRatesPending(Details))
                                 {
                                     <span class="spinner-border spinner-border-sm text-secondary" role="status" title="Measuring"></span>
+                                }
+                            </td>
+                            <td class="text-end text-nowrap small">
+                                @if (track.StreamSizeText is { } size)
+                                {
+                                    @size
+                                }
+                                else if (Probe.AudioBitRatesPending(Details))
+                                {
+                                    <span class="spinner-border spinner-border-sm text-secondary" role="status" title="Reading with MediaInfo"></span>
                                 }
                             </td>
                             <td class="small">@track.Title</td>
