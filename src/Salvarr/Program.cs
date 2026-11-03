@@ -34,6 +34,10 @@ if (!app.Environment.IsDevelopment())
 app.UseAntiforgery();
 app.MapStaticAssets();
 app.MapGet("/health", () => Results.Ok("ok"));
+
+// Counts for a dashboard (Homepage's custom API widget). Read-only, no key.
+app.MapGet("/api/stats", async (RecycleBinService bins) =>
+    Results.Ok(RecycleStats.From(await bins.GetAsync(TimeSpan.FromMinutes(5)), DateTime.UtcNow)));
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 
