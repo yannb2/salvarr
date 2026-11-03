@@ -6,3 +6,4 @@ publish/
 .idea/
 *.user
 TestResults/
+__pycache__/

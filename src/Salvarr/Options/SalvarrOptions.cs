@@ -53,6 +53,9 @@ public class SalvarrOptions
     /// <summary>The Radarr or Sonarr settings that go with a library.</summary>
     public ArrOptions ArrFor(LibraryOptions library) => library.Kind == LibraryKind.Series ? Sonarr : Radarr;
 
+    /// <summary>Looking for newer tool versions on the Tools page (never installs anything).</summary>
+    public UpdateCheckOptions Updates { get; set; } = new();
+
     public static readonly string[] DefaultRecycleFolderNames = [".recycle"];
 
     public static readonly string[] DefaultVideoExtensions =
@@ -73,6 +76,14 @@ public class SalvarrOptions
 
         return this;
     }
+}
+
+public class UpdateCheckOptions
+{
+    /// <summary>Look for new tool versions on the internet once a day. Nothing is ever installed by the app.</summary>
+    public bool Enabled { get; set; } = true;
+
+    public double IntervalHours { get; set; } = 24;
 }
 
 public class LibraryOptions

@@ -9,7 +9,8 @@ public sealed record RecycleStats(
     int DeletedToday,
     int ExpiringSoon,
     int Bins,
-    DateTime ScannedUtc)
+    DateTime ScannedUtc,
+    int ToolUpdates = 0)
 {
     /// <summary><paramref name="nowUtc"/> sets "today" (last 24 h) and "soon" (deleted automatically within 24 h).</summary>
     public static RecycleStats From(ScanResult scan, DateTime nowUtc)
