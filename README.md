@@ -129,7 +129,19 @@ variable (`__` separates levels, lists are numbered from 0):
 | Restore and delete | off | `Salvarr__AllowChanges=true` (and mount the libraries read-write) |
 | Radarr | not used | `Salvarr__Radarr__Url=http://radarr:7878`, `Salvarr__Radarr__ApiKey=...` |
 | Sonarr | not used | `Salvarr__Sonarr__Url=http://sonarr:8989`, `Salvarr__Sonarr__ApiKey=...` |
+| Look for newer tool versions once a day | `true` | `Salvarr__Updates__Enabled=false` |
 | Port | `8184` | `ASPNETCORE_HTTP_PORTS=8184` |
+
+## Tools and updates
+
+The image bundles ffprobe (BtbN static FFmpeg build), MediaInfo (MediaArea's static
+build) and dovi_tool, each pinned with an `ARG` line at the top of the `Dockerfile`.
+The **Tools** page shows what each one reports, the pin and the newest upstream
+version (looked up once a day; the app never installs anything). Every Monday the
+"Tool updates" workflow opens a pull request that bumps the pins when something newer
+is out; the build on that branch is the test. It needs Settings > Actions > General >
+"Allow GitHub Actions to create and approve pull requests". `/api/stats` also returns
+`toolUpdates`, the number of tools with a newer version.
 
 ## Developing
 
