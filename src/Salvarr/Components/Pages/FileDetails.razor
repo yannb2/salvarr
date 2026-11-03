@@ -307,6 +307,23 @@ else
         var library = LibraryPath is { } path ? Probe.ProbeAsync(path) : null;
         _recycled = await recycled;
         _library = library == null ? null : await library;
+        await FillAudioBitRates();
+    }
+
+    /// <summary>Shows the files first, then the audio bit rates that had to be looked for.</summary>
+    private async Task FillAudioBitRates()
+    {
+        var fills = new[] { _recycled?.Details, _library?.Details }
+            .Where(d => d != null)
+            .Select(d => Probe.FillAudioBitRatesAsync(d!))
+            .Where(t => !t.IsCompleted)
+            .ToList();
+        // The first, static render does not wait for them: the interactive one does.
+        if (fills.Count > 0 && RendererInfo.IsInteractive)
+        {
+            StateHasChanged();
+            await Task.WhenAll(fills);
+        }
     }
 
     private async Task CandidateChanged(ChangeEventArgs e)
@@ -321,6 +338,7 @@ else
         _library = null;
         StateHasChanged();
         _library = await Probe.ProbeAsync(_file.Match.Candidates[index].Path);
+        await FillAudioBitRates();
         if (_tab == Tab.Raw && _rawSide == RawSide.Library)
         {
             await ShowRaw(RawSide.Library, _rawFormat);

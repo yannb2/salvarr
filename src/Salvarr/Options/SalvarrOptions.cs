@@ -33,6 +33,12 @@ public class SalvarrOptions
     public bool ReadDolbyVision { get; set; } = true;
 
     /// <summary>
+    /// Measure the audio bit rate of lossless tracks that do not store one (no
+    /// MKV statistics tags and nothing in mediainfo), on 6 samples of 10 s.
+    /// </summary>
+    public bool EstimateAudioBitRate { get; set; } = true;
+
+    /// <summary>
     /// Restore and delete buttons. Off by default: Salvarr is read-only until this
     /// is true and the libraries are mounted read-write.
     /// </summary>
