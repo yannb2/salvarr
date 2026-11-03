@@ -1,5 +1,5 @@
 using System.Diagnostics;
-using Mono.Unix;
+using Mono.Unix.Native;
 using Salvarr.Options;
 
 namespace Salvarr.Library;
@@ -7,7 +7,8 @@ namespace Salvarr.Library;
 /// <summary>Finds the recycle bins in each library and lists what is in them.</summary>
 public static class RecycleBinScanner
 {
-    public static ScanResult Scan(SalvarrOptions options)
+    /// <param name="extraBins">Bins found another way, e.g. Radarr's recycle bin setting.</param>
+    public static ScanResult Scan(SalvarrOptions options, IEnumerable<RecycleBin>? extraBins = null)
     {
         var stopwatch = Stopwatch.StartNew();
         var problems = new List<string>();
@@ -22,6 +23,14 @@ public static class RecycleBinScanner
             }
 
             FindBins(library, library.Path, 1, options, bins, problems);
+        }
+
+        foreach (var extra in extraBins ?? [])
+        {
+            if (Directory.Exists(extra.Path) && bins.All(b => !Arr.Retention.SamePath(b.Path, extra.Path)))
+            {
+                bins.Add(extra);
+            }
         }
 
         var videoExtensions = new HashSet<string>(options.VideoExtensions, StringComparer.OrdinalIgnoreCase);
@@ -128,7 +137,15 @@ public static class RecycleBinScanner
 
         try
         {
-            var changed = new UnixFileInfo(info.FullName).LastStatusChangeTimeUtc;
+            // Syscall.stat, not UnixFileInfo.LastStatusChangeTimeUtc: the latter adds the
+            // nanoseconds as if they were microseconds, putting the time up to 16 minutes ahead.
+            if (Syscall.stat(info.FullName, out var stat) != 0)
+            {
+                return modified;
+            }
+
+            var changed = DateTimeOffset.FromUnixTimeSeconds(stat.st_ctime).UtcDateTime
+                .AddTicks(stat.st_ctime_nsec / 100);
             return changed > modified ? changed : modified;
         }
         catch (Exception)

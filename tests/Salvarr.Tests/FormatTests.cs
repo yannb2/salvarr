@@ -47,3 +47,17 @@ public sealed class FormatTests
         Assert.IsNull(PathId.Decode("not base64!"));
     }
 }
+
+[TestClass]
+public sealed class TimeUntilTests
+{
+    [TestMethod]
+    public void Time_until()
+    {
+        var now = new DateTime(2026, 11, 3, 12, 0, 0, DateTimeKind.Utc);
+        Assert.AreEqual("now", Format.TimeUntil(now.AddSeconds(-5), now));
+        Assert.AreEqual("in 10 minutes", Format.TimeUntil(now.AddMinutes(10), now));
+        Assert.AreEqual("in 5 hours", Format.TimeUntil(now.AddHours(5), now));
+        Assert.AreEqual("in 7 days", Format.TimeUntil(now.AddDays(7), now));
+    }
+}

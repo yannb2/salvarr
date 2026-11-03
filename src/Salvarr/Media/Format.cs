@@ -61,6 +61,21 @@ public static class Format
         static string Plural(int n, string unit) => n == 1 ? $"1 {unit} ago" : $"{n} {unit}s ago";
     }
 
+    /// <summary>"in 3 days", "in 5 hours", "now" for a moment in the future.</summary>
+    public static string TimeUntil(DateTime utc, DateTime? nowUtc = null)
+    {
+        var span = utc - (nowUtc ?? DateTime.UtcNow);
+        return span.TotalMinutes switch
+        {
+            < 1 => "now",
+            < 60 => In((int)Math.Ceiling(span.TotalMinutes), "minute"),
+            < 60 * 48 => In((int)Math.Round(span.TotalHours), "hour"),
+            _ => In((int)Math.Round(span.TotalDays), "day")
+        };
+
+        static string In(int n, string unit) => n == 1 ? $"in 1 {unit}" : $"in {n} {unit}s";
+    }
+
     public static string LocalDate(DateTime utc)
     {
         return utc.ToLocalTime().ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture);

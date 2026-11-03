@@ -159,6 +159,26 @@ public sealed class LibraryTests
 
         Assert.AreEqual(new DateTime(2020, 1, 1, 0, 0, 0, DateTimeKind.Utc), file.ModifiedUtc);
         Assert.IsTrue(file.DeletedUtc > DateTime.UtcNow.AddMinutes(-5), "the change time says it moved just now");
+        Assert.IsTrue(file.DeletedUtc <= DateTime.UtcNow.AddSeconds(1), "never in the future");
+    }
+
+    [TestMethod]
+    public void Cleanup_clock_is_the_newest_file_in_the_top_folder()
+    {
+        var old = Touch("movies/.recycle/X (2000)/X (2000).mkv");
+        var newer = Touch("movies/.recycle/X (2000)/extras/making-of.mkv");
+        var loose = Touch("movies/.recycle/Y (2001).mkv");
+        File.SetLastWriteTimeUtc(old, new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc));
+        File.SetLastWriteTimeUtc(newer, new DateTime(2026, 2, 1, 0, 0, 0, DateTimeKind.Utc));
+        File.SetLastWriteTimeUtc(loose, new DateTime(2026, 3, 1, 0, 0, 0, DateTimeKind.Utc));
+        var scan = Scan();
+        var cache = new Dictionary<string, DateTime>();
+
+        // Radarr deletes the whole "X (2000)" folder once its newest file has expired.
+        Assert.AreEqual(new DateTime(2026, 2, 1, 0, 0, 0, DateTimeKind.Utc),
+            Salvarr.Arr.ArrService.CleanupClock(Find(scan, "X (2000).mkv"), cache));
+        Assert.AreEqual(new DateTime(2026, 3, 1, 0, 0, 0, DateTimeKind.Utc),
+            Salvarr.Arr.ArrService.CleanupClock(Find(scan, "Y (2001).mkv"), cache));
     }
 
     [TestMethod]

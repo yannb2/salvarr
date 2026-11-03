@@ -29,6 +29,21 @@ public class SalvarrOptions
     /// <summary>Probe the first frames of HDR10 video for HDR10+ metadata (about a second per file).</summary>
     public bool DetectHdr10Plus { get; set; } = true;
 
+    /// <summary>
+    /// Restore and delete buttons. Off by default: Salvarr is read-only until this
+    /// is true and the libraries are mounted read-write.
+    /// </summary>
+    public bool AllowChanges { get; set; }
+
+    /// <summary>Radarr, for its recycle bin settings and to rescan a movie after a restore.</summary>
+    public ArrOptions Radarr { get; set; } = new();
+
+    /// <summary>Sonarr, the same for shows.</summary>
+    public ArrOptions Sonarr { get; set; } = new();
+
+    /// <summary>The Radarr or Sonarr settings that go with a library.</summary>
+    public ArrOptions ArrFor(LibraryOptions library) => library.Kind == LibraryKind.Series ? Sonarr : Radarr;
+
     public static readonly string[] DefaultRecycleFolderNames = [".recycle"];
 
     public static readonly string[] DefaultVideoExtensions =
@@ -61,6 +76,16 @@ public class LibraryOptions
 
     /// <summary>Movies match the library file by folder; Series also by S01E02.</summary>
     public LibraryKind Kind { get; set; } = LibraryKind.Movies;
+}
+
+public class ArrOptions
+{
+    /// <summary>e.g. http://radarr:7878. Empty = not used.</summary>
+    public string Url { get; set; } = "";
+
+    public string ApiKey { get; set; } = "";
+
+    public bool IsConfigured => !string.IsNullOrWhiteSpace(Url) && !string.IsNullOrWhiteSpace(ApiKey);
 }
 
 public enum LibraryKind
