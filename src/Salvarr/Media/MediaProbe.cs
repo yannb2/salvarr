@@ -23,6 +23,7 @@ public sealed class MediaProbe(IOptions<SalvarrOptions> options, ILogger<MediaPr
     private readonly ConcurrentDictionary<string, Task<ProbeResult>> _probes = new();
     private readonly ConcurrentDictionary<string, Task<string>> _mediaInfo = new();
     private readonly ConcurrentDictionary<string, Task<DolbyVisionResult>> _wholeFilm = new();
+    private readonly ConcurrentDictionary<string, Task> _audioBitRates = new();
 
     public Task<ProbeResult> ProbeAsync(string path)
     {
@@ -67,11 +68,54 @@ public sealed class MediaProbe(IOptions<SalvarrOptions> options, ILogger<MediaPr
             : null;
     }
 
+    /// <summary>
+    /// Fills in the audio bit rates the file does not state (lossless tracks
+    /// without MKV statistics tags): mediainfo's average or peak, else measured
+    /// on a few samples. Done after the page shows the rest, once per file.
+    /// </summary>
+    public Task FillAudioBitRatesAsync(MediaDetails details)
+    {
+        if (details.Audio.All(a => a.BitRate != null))
+        {
+            return Task.CompletedTask;
+        }
+
+        // The details are cached by the same key, so they are filled once and stay filled.
+        return _audioBitRates.GetOrAdd(CacheKey(details.Path), _ => FillAudioBitRatesUncachedAsync(details));
+    }
+
+    /// <summary>True while the audio bit rates of these details are being looked for.</summary>
+    public bool AudioBitRatesPending(MediaDetails details)
+    {
+        return _audioBitRates.TryGetValue(CacheKey(details.Path), out var task) && !task.IsCompleted;
+    }
+
+    private async Task FillAudioBitRatesUncachedAsync(MediaDetails details)
+    {
+        try
+        {
+            var info = await ProcessRunner.RunAsync(MediaInfoExecutable, ["--Output=JSON", details.Path], TimeSpan.FromSeconds(60));
+            var rates = info.Success ? AudioBitRate.ParseMediaInfo(info.Output) : [];
+            Dictionary<int, long>? measured = null;
+            if (options.Value.EstimateAudioBitRate && AudioBitRate.NeedsMeasuring(details, rates))
+            {
+                measured = await AudioBitRate.MeasureAsync(FfprobeExecutable, details.Path, details.Duration);
+            }
+
+            AudioBitRate.Apply(details, rates, measured);
+        }
+        catch (Exception e)
+        {
+            logger.LogWarning(e, "Could not work out the audio bit rates of {Path}", details.Path);
+        }
+    }
+
     /// <summary>Forgets everything, e.g. after a refresh. A whole-film read is kept: it is slow and the key has the file's size and date.</summary>
     public void ClearCache()
     {
         _probes.Clear();
         _mediaInfo.Clear();
+        _audioBitRates.Clear();
     }
 
     private async Task<ProbeResult> ProbeUncachedAsync(string path)

@@ -22,6 +22,11 @@ file to where it was (and ask Radarr or Sonarr to rescan) or delete it for good.
   Dolby Vision profile, Atmos, DTS:X, channels, language, track name and flags),
   chapters, attachments, and every MKV global tag (TMDB, IMDB, RELEASE_NAME,
   SOURCE, EDITION and the rest of what `tag_release.py` writes).
+- **Audio bit rates.** Lossless tracks (TrueHD, DTS-HD MA, FLAC) only store one
+  when mkvmerge wrote its statistics tags. Without them Salvarr uses mediainfo's
+  average, else measures the audio packets in 6 samples of 10 s (shown as
+  `≈ 4.2 Mb/s`, filled in a few seconds after the page opens), else shows the
+  peak from the stream header (`up to 9.6 Mb/s`).
 - **Dolby Vision.** dovi_tool reads the RPU of the first 500 frames: profile 7
   FEL or MEL, CM v2.9 or v4.0, scene count, mastering display, L1 MaxCLL and
   MaxFALL, L2/L8 trims, L5 offsets, L6, L9 and the rest of its summary.
@@ -120,6 +125,7 @@ variable (`__` separates levels, lists are numbered from 0):
 | How deep to look for bins | `2` | `Salvarr__SearchDepth=2` |
 | Look for HDR10+ (reads 5 frames) | `true` | `Salvarr__DetectHdr10Plus=false` |
 | Read Dolby Vision details with dovi_tool (first 500 frames) | `true` | `Salvarr__ReadDolbyVision=false` |
+| Measure audio bit rates the file does not state (6 samples of 10 s) | `true` | `Salvarr__EstimateAudioBitRate=false` |
 | Restore and delete | off | `Salvarr__AllowChanges=true` (and mount the libraries read-write) |
 | Radarr | not used | `Salvarr__Radarr__Url=http://radarr:7878`, `Salvarr__Radarr__ApiKey=...` |
 | Sonarr | not used | `Salvarr__Sonarr__Url=http://sonarr:8989`, `Salvarr__Sonarr__ApiKey=...` |
