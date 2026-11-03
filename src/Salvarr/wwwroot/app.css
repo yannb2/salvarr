@@ -717,3 +717,22 @@
 h2:focus {
     outline: none;
 }
+
+/* Connection light in the sidebar footer. */
+.sv-connection {
+    color: rgba(255, 255, 255, 0.4);
+    font-size: 0.6875rem;
+}
+
+.sv-connection i {
+    font-size: 0.5rem;
+    vertical-align: middle;
+}
+
+.sv-connection.live i {
+    color: var(--bs-success);
+}
+
+.sv-sidebar.collapsed .sv-connection-text {
+    display: none;
+}

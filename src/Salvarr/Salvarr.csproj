@@ -6,6 +6,9 @@
         <ImplicitUsings>enable</ImplicitUsings>
         <Version>0.2.0</Version>
         <InvariantGlobalization>false</InvariantGlobalization>
+        <!-- The SDK only adds blazor.web.js when it sees .razor files at restore time.
+             The Dockerfile restores from the .csproj alone, so say it here. -->
+        <RequiresAspNetWebAssets>true</RequiresAspNetWebAssets>
     </PropertyGroup>
 
     <ItemGroup>
