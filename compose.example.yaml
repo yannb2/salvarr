@@ -1,0 +1,23 @@
+# Example service for the media VM's compose.yaml (/config/compose/compose.yaml).
+services:
+  salvarr:                                   # browse the .recycle folders, compare with the library
+    image: ghcr.io/yannb2/salvarr:dev
+    container_name: salvarr
+    user: 1000:1000                          # media; only needs to read the files
+    environment:
+      TZ: America/Toronto
+      # The defaults, shown here so they are easy to change:
+      # Salvarr__Libraries__0__Name: Movies
+      # Salvarr__Libraries__0__Path: /movies
+      # Salvarr__Libraries__0__Kind: Movies
+      # Salvarr__Libraries__1__Name: TV
+      # Salvarr__Libraries__1__Path: /tv
+      # Salvarr__Libraries__1__Kind: Series
+      # Salvarr__RecycleFolderNames__0: .recycle
+      # Salvarr__SearchDepth: "2"
+    ports:
+      - 8184:8184
+    volumes:
+      - /movies:/movies:ro                   # read-only: v0.1 never changes anything
+      - /tv:/tv:ro
+    restart: unless-stopped

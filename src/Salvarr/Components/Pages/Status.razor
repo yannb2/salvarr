@@ -1,0 +1,136 @@
+@page "/status"
+@inject RecycleBinService Bins
+
+<PageTitle>Status · Salvarr</PageTitle>
+
+<div class="d-flex justify-content-between align-items-center border-bottom pb-2 mb-4 sv-page-header">
+    <h2 class="mb-0"><i class="bi bi-info-circle me-2"></i>Status</h2>
+</div>
+
+<div class="row g-3">
+    <div class="col-12 col-xl-6">
+        <div class="card h-100">
+            <div class="card-header"><i class="bi bi-collection me-2"></i>Libraries</div>
+            <div class="card-body p-0">
+                <table class="table table-sm mb-0">
+                    <thead>
+                    <tr>
+                        <th class="ps-3">Name</th>
+                        <th>Path</th>
+                        <th>Kind</th>
+                        <th>Mounted</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    @foreach (var library in Bins.Options.Libraries)
+                    {
+                        <tr>
+                            <td class="ps-3">@library.Name</td>
+                            <td class="sv-path">@library.Path</td>
+                            <td>@library.Kind</td>
+                            <td>
+                                @if (Directory.Exists(library.Path))
+                                {
+                                    <i class="bi bi-check-circle text-success"></i>
+                                }
+                                else
+                                {
+                                    <i class="bi bi-x-circle text-danger"></i>
+                                }
+                            </td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+                <p class="small text-muted m-3">
+                    Recycle bin folder names: <code>@string.Join(", ", Bins.Options.RecycleFolderNames)</code>,
+                    looked for @Bins.Options.SearchDepth @(Bins.Options.SearchDepth == 1 ? "level" : "levels") deep.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12 col-xl-6">
+        <div class="card h-100">
+            <div class="card-header"><i class="bi bi-recycle me-2"></i>Recycle bins found</div>
+            <div class="card-body p-0">
+                @if (_scan == null)
+                {
+                    <div class="text-center py-4"><span class="spinner-border" role="status"></span></div>
+                }
+                else if (_scan.Bins.Count == 0)
+                {
+                    <p class="sv-missing m-3">None.</p>
+                }
+                else
+                {
+                    <table class="table table-sm mb-0">
+                        <thead>
+                        <tr>
+                            <th class="ps-3">Path</th>
+                            <th>Library</th>
+                            <th class="text-end pe-3">Videos</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        @foreach (var bin in _scan.Bins)
+                        {
+                            <tr>
+                                <td class="ps-3 sv-path">@bin.Path</td>
+                                <td>@bin.Library.Name</td>
+                                <td class="text-end pe-3">@_scan.Files.Count(f => f.Bin == bin)</td>
+                            </tr>
+                        }
+                        </tbody>
+                    </table>
+                }
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12 col-xl-6">
+        <div class="card h-100">
+            <div class="card-header"><i class="bi bi-tools me-2"></i>Tools</div>
+            <div class="card-body p-0">
+                <table class="table table-sm mb-0">
+                    <tbody>
+                    @foreach (var (name, version) in _tools)
+                    {
+                        <tr>
+                            <td class="ps-3"><code>@name</code></td>
+                            <td class="small">@version</td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private ScanResult? _scan;
+    private List<(string Name, string Version)> _tools = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        _tools =
+        [
+            (MediaProbe.FfprobeExecutable, await FirstLine(MediaProbe.FfprobeExecutable, "-version")),
+            (MediaProbe.MediaInfoExecutable, await FirstLine(MediaProbe.MediaInfoExecutable, "--version", last: true))
+        ];
+        _scan = await Bins.GetAsync(TimeSpan.FromMinutes(1));
+    }
+
+    private static async Task<string> FirstLine(string tool, string argument, bool last = false)
+    {
+        var result = await ProcessRunner.RunAsync(tool, [argument], TimeSpan.FromSeconds(10));
+        if (!result.Success)
+        {
+            return result.Error.Trim().Length > 0 ? result.Error.Trim() : "Not found";
+        }
+
+        var lines = result.Output.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        return lines.Length == 0 ? "" : last ? lines[^1] : lines[0];
+    }
+}
