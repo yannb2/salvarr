@@ -34,6 +34,7 @@ public static class Comparison
         {
             new("General", "bi-file-earmark-play", General(recycled, library)),
             new("Video", "bi-film", Video(recycled, library)),
+            new("Dolby Vision", "bi-brightness-high", DolbyVision(recycled, library)),
             new("Audio", "bi-volume-up", Tracks("Audio", recycled.Audio, library.Audio)),
             new("Subtitles", "bi-chat-text", Tracks("Subtitle", recycled.Subtitles, library.Subtitles)),
             new("Tags", "bi-tags", Tags(recycled, library)),
@@ -87,6 +88,27 @@ public static class Comparison
         }
 
         return rows;
+    }
+
+    /// <summary>
+    /// dovi_tool's summary lines side by side. Both sides read the same number of
+    /// frames, so the frame count itself is left out.
+    /// </summary>
+    private static List<CompareRow> DolbyVision(MediaDetails a, MediaDetails b)
+    {
+        var left = a.DolbyVision;
+        var right = b.DolbyVision;
+        if (left == null && right == null)
+        {
+            return [];
+        }
+
+        var labels = (left?.Lines ?? []).Concat(right?.Lines ?? [])
+            .Select(l => l.Key)
+            .Where(k => !k.Equals("Frames", StringComparison.OrdinalIgnoreCase))
+            .Distinct(StringComparer.OrdinalIgnoreCase);
+
+        return labels.Select(k => new CompareRow(k, left?.Get(k), right?.Get(k))).ToList();
     }
 
     /// <summary>Tracks side by side by position: the first audio track against the first audio track.</summary>

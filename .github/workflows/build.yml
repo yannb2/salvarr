@@ -26,6 +26,13 @@ jobs:
         with:
           dotnet-version: '10.0.x'
 
+      # For the tests that read a real Dolby Vision sample.
+      - name: Install dovi_tool and ffprobe
+        run: |
+          sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg
+          curl -fsSL https://github.com/quietvoid/dovi_tool/releases/download/2.3.4/dovi_tool-2.3.4-x86_64-unknown-linux-musl.tar.gz | sudo tar -xz -C /usr/local/bin
+          dovi_tool --version
+
       - name: Test
         run: dotnet test --configuration Release
 
@@ -82,6 +89,9 @@ jobs:
           for i in $(seq 1 30); do curl -fs http://localhost:8184/health && break; sleep 1; done
           curl -fsS -o /dev/null http://localhost:8184/_framework/blazor.web.js
           curl -fsS http://localhost:8184/ | grep -q 'Salvarr'
+          docker exec smoke dovi_tool --version
+          docker exec smoke ffprobe -version
+          docker exec smoke mediainfo --version
           docker rm -f smoke
 
       - name: Build and push

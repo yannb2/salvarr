@@ -29,6 +29,9 @@ public class SalvarrOptions
     /// <summary>Probe the first frames of HDR10 video for HDR10+ metadata (about a second per file).</summary>
     public bool DetectHdr10Plus { get; set; } = true;
 
+    /// <summary>Read the Dolby Vision RPU of the first 500 frames with dovi_tool (a second or two per file).</summary>
+    public bool ReadDolbyVision { get; set; } = true;
+
     /// <summary>
     /// Restore and delete buttons. Off by default: Salvarr is read-only until this
     /// is true and the libraries are mounted read-write.

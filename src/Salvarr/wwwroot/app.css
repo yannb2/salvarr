@@ -736,3 +736,8 @@ h2:focus {
 .sv-sidebar.collapsed .sv-connection-text {
     display: none;
 }
+
+/* dovi_tool values that span several lines (L2 and L8 trims). */
+.sv-multiline {
+    white-space: pre-line;
+}

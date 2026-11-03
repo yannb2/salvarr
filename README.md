@@ -22,9 +22,13 @@ file to where it was (and ask Radarr or Sonarr to rescan) or delete it for good.
   Dolby Vision profile, Atmos, DTS:X, channels, language, track name and flags),
   chapters, attachments, and every MKV global tag (TMDB, IMDB, RELEASE_NAME,
   SOURCE, EDITION and the rest of what `tag_release.py` writes).
+- **Dolby Vision.** dovi_tool reads the RPU of the first 500 frames: profile 7
+  FEL or MEL, CM v2.9 or v4.0, scene count, mastering display, L1 MaxCLL and
+  MaxFALL, L2/L8 trims, L5 offsets, L6, L9 and the rest of its summary.
+  "Read the whole film" reads every frame for the film's real L1 brightness.
 - **Compare.** The deleted file and the library file in two columns, with every
   row that differs highlighted: general facts, video, each audio and subtitle
-  track by position, tags and chapters. "Only show differences" hides the rest.
+  track by position, Dolby Vision, tags and chapters. "Only show differences" hides the rest.
 - **MediaInfo.** The raw `mediainfo` output or ffprobe JSON of either file.
 - **Automatic delete.** With Radarr and Sonarr set up, Salvarr reads their recycle
   bin folder, how many days they keep files and when their "Clean Up Recycle Bin"
@@ -108,6 +112,7 @@ variable (`__` separates levels, lists are numbered from 0):
 | Recycle bin folder names | `.recycle` | `Salvarr__RecycleFolderNames__0=.recycle` |
 | How deep to look for bins | `2` | `Salvarr__SearchDepth=2` |
 | Look for HDR10+ (reads 5 frames) | `true` | `Salvarr__DetectHdr10Plus=false` |
+| Read Dolby Vision details with dovi_tool (first 500 frames) | `true` | `Salvarr__ReadDolbyVision=false` |
 | Restore and delete | off | `Salvarr__AllowChanges=true` (and mount the libraries read-write) |
 | Radarr | not used | `Salvarr__Radarr__Url=http://radarr:7878`, `Salvarr__Radarr__ApiKey=...` |
 | Sonarr | not used | `Salvarr__Sonarr__Url=http://sonarr:8989`, `Salvarr__Sonarr__ApiKey=...` |
@@ -117,7 +122,7 @@ variable (`__` separates levels, lists are numbered from 0):
 
 .NET 10, Blazor Server with Bootstrap 5 (the layout follows
 [Muxarr](https://github.com/KirovAir/muxarr), so the two look alike).
-`ffprobe` and `mediainfo` must be on the PATH.
+`ffprobe`, `mediainfo` and [`dovi_tool`](https://github.com/quietvoid/dovi_tool) must be on the PATH.
 
 ```bash
 dotnet test                                   # unit tests
@@ -133,7 +138,7 @@ Salvarr__Libraries__0__Path=~/media/movies Salvarr__Libraries__1__Path=~/media/t
 
 | Folder | What is in it |
 | --- | --- |
-| `src/Salvarr/Media` | Runs ffprobe and mediainfo, turns the JSON into tracks, tags and chapters |
+| `src/Salvarr/Media` | Runs ffprobe, mediainfo and dovi_tool, turns the JSON into tracks, tags and chapters |
 | `src/Salvarr/Library` | Finds the bins, lists the files, matches them to the library, restore and delete |
 | `src/Salvarr/Arr` | Radarr/Sonarr API: bin settings, cleanup schedule, rescan; time left before cleanup |
 | `src/Salvarr/Compare` | Builds the side-by-side rows |

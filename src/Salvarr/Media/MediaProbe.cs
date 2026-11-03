@@ -17,8 +17,12 @@ public sealed class MediaProbe(IOptions<SalvarrOptions> options, ILogger<MediaPr
     public const string FfprobeExecutable = "ffprobe";
     public const string MediaInfoExecutable = "mediainfo";
 
+    /// <summary>An 80 GB remux takes several minutes to read from disks.</summary>
+    private static readonly TimeSpan WholeFilmTimeout = TimeSpan.FromMinutes(60);
+
     private readonly ConcurrentDictionary<string, Task<ProbeResult>> _probes = new();
     private readonly ConcurrentDictionary<string, Task<string>> _mediaInfo = new();
+    private readonly ConcurrentDictionary<string, Task<DolbyVisionResult>> _wholeFilm = new();
 
     public Task<ProbeResult> ProbeAsync(string path)
     {
@@ -39,7 +43,31 @@ public sealed class MediaProbe(IOptions<SalvarrOptions> options, ILogger<MediaPr
         return _mediaInfo.GetOrAdd(CacheKey(path), _ => MediaInfoUncachedAsync(path));
     }
 
-    /// <summary>Forgets everything, e.g. after a refresh.</summary>
+    /// <summary>
+    /// The Dolby Vision RPU of every frame, for the brightness of the whole film
+    /// (L1 MaxCLL and MaxFALL) and the scene count. Reads the whole file.
+    /// </summary>
+    public Task<DolbyVisionResult> WholeFilmDolbyVisionAsync(string path)
+    {
+        var key = CacheKey(path);
+        var task = _wholeFilm.GetOrAdd(key, _ => DoviTool.ReadAsync(path, null, WholeFilmTimeout));
+        if (task.IsCompleted && task.Result.Details == null)
+        {
+            _wholeFilm.TryRemove(key, out _);
+        }
+
+        return task;
+    }
+
+    /// <summary>The whole-film result when it was already read, without reading.</summary>
+    public DolbyVisionDetails? CachedWholeFilm(string path)
+    {
+        return _wholeFilm.TryGetValue(CacheKey(path), out var task) && task.IsCompletedSuccessfully
+            ? task.Result.Details
+            : null;
+    }
+
+    /// <summary>Forgets everything, e.g. after a refresh. A whole-film read is kept: it is slow and the key has the file's size and date.</summary>
     public void ClearCache()
     {
         _probes.Clear();
@@ -83,6 +111,25 @@ public sealed class MediaProbe(IOptions<SalvarrOptions> options, ILogger<MediaPr
                 if (await HasHdr10PlusAsync(path, video.Index) == true)
                 {
                     video.HdrFormat = "HDR10+";
+                }
+            }
+        }
+
+        if (options.Value.ReadDolbyVision && details.HasDolbyVision)
+        {
+            var dv = await DoviTool.ReadAsync(path, DoviTool.SampleFrames, TimeSpan.FromMinutes(2));
+            details.DolbyVision = dv.Details;
+            details.DolbyVisionError = dv.Error;
+            if (dv.Error != null)
+            {
+                logger.LogWarning("dovi_tool failed on {Path}: {Error}", path, dv.Error);
+            }
+
+            if (dv.Details?.Layer is { } layer)
+            {
+                foreach (var video in details.Video.Where(v => v.HasEnhancementLayer))
+                {
+                    video.EnhancementLayer = layer;
                 }
             }
         }
