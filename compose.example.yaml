@@ -6,6 +6,13 @@ services:
     user: 1000:1000                          # media; only needs to read the files
     environment:
       TZ: America/Toronto
+      # Radarr and Sonarr: time left before they empty a file, and a rescan after a restore.
+      Salvarr__Radarr__Url: http://radarr:7878
+      Salvarr__Radarr__ApiKey: ${RADARR_API_KEY}
+      Salvarr__Sonarr__Url: http://sonarr:8989
+      Salvarr__Sonarr__ApiKey: ${SONARR_API_KEY}
+      # Restore and delete. Off by default; turning it on also needs the :ro removed below.
+      # Salvarr__AllowChanges: "true"
       # The defaults, shown here so they are easy to change:
       # Salvarr__Libraries__0__Name: Movies
       # Salvarr__Libraries__0__Path: /movies
@@ -18,6 +25,6 @@ services:
     ports:
       - 8184:8184
     volumes:
-      - /movies:/movies:ro                   # read-only: v0.1 never changes anything
+      - /movies:/movies:ro                   # read-only until AllowChanges is on
       - /tv:/tv:ro
     restart: unless-stopped

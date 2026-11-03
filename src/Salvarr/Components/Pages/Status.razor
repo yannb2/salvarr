@@ -90,6 +90,86 @@
 
     <div class="col-12 col-xl-6">
         <div class="card h-100">
+            <div class="card-header"><i class="bi bi-hourglass-split me-2"></i>Radarr and Sonarr</div>
+            <div class="card-body p-0">
+                @if (_scan == null)
+                {
+                    <div class="text-center py-4"><span class="spinner-border" role="status"></span></div>
+                }
+                else
+                {
+                    <table class="table table-sm mb-0">
+                        <tbody>
+                        @foreach (var status in _scan.ArrStatuses)
+                        {
+                            <tr>
+                                <td class="ps-3 fw-semibold" style="width: 6rem;">@status.AppName</td>
+                                <td class="small">
+                                    @if (!status.IsConfigured)
+                                    {
+                                        <span class="text-muted">
+                                            Not set up. Set <code>Salvarr__@(status.AppName)__Url</code> and
+                                            <code>Salvarr__@(status.AppName)__ApiKey</code> to show when files are deleted
+                                            automatically and to rescan after a restore.
+                                        </span>
+                                    }
+                                    else if (status.Error != null)
+                                    {
+                                        <span class="text-danger">@status.Error</span>
+                                    }
+                                    else if (status.Settings is { } bin)
+                                    {
+                                        <div>Recycle bin <span class="sv-path">@bin.RecycleBinPath</span>
+                                            @if (_scan.Bins.Any(b => Retention.SamePath(b.Path, bin.RecycleBinPath)))
+                                            {
+                                                <i class="bi bi-check-circle text-success ms-1" title="Listed by Salvarr"></i>
+                                            }
+                                            else
+                                            {
+                                                <span class="text-warning ms-1">
+                                                    (not listed: it is outside the library mounts, or Salvarr sees it under another path)
+                                                </span>
+                                            }
+                                        </div>
+                                        <div>
+                                            @(bin.CleanupDays > 0 ? $"Keeps files {bin.CleanupDays} days" : "Never empties it (0 days)")
+                                            @if (bin.NextCleanupUtc is { } next)
+                                            {
+                                                <span>; next cleanup @Format.TimeUntil(next) (@Format.LocalDate(next))</span>
+                                            }
+                                        </div>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                        </tbody>
+                    </table>
+                }
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12 col-xl-6">
+        <div class="card h-100">
+            <div class="card-header"><i class="bi bi-shield-lock me-2"></i>Changes</div>
+            <div class="card-body small">
+                @if (Bins.Options.AllowChanges)
+                {
+                    <p class="mb-0"><i class="bi bi-unlock text-warning me-1"></i>
+                        Restore and delete are <strong>on</strong>. The libraries must be mounted read-write.</p>
+                }
+                else
+                {
+                    <p class="mb-0"><i class="bi bi-lock text-success me-1"></i>
+                        Salvarr is read-only. To turn on restore and delete, set <code>Salvarr__AllowChanges=true</code>
+                        and remove <code>:ro</code> from the <code>/movies</code> and <code>/tv</code> volumes.</p>
+                }
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12 col-xl-6">
+        <div class="card h-100">
             <div class="card-header"><i class="bi bi-tools me-2"></i>Tools</div>
             <div class="card-body p-0">
                 <table class="table table-sm mb-0">
@@ -119,7 +199,7 @@
             (MediaProbe.FfprobeExecutable, await FirstLine(MediaProbe.FfprobeExecutable, "-version")),
             (MediaProbe.MediaInfoExecutable, await FirstLine(MediaProbe.MediaInfoExecutable, "--version", last: true))
         ];
-        _scan = await Bins.GetAsync(TimeSpan.FromMinutes(1));
+        _scan = await Bins.RescanAsync(refreshArr: true);
     }
 
     private static async Task<string> FirstLine(string tool, string argument, bool last = false)

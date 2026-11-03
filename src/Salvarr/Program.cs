@@ -1,4 +1,5 @@
 using System.Globalization;
+using Salvarr.Arr;
 using Salvarr.Components;
 using Salvarr.Library;
 using Salvarr.Media;
@@ -14,8 +15,11 @@ builder.Services.AddOptions<SalvarrOptions>()
     .Bind(builder.Configuration.GetSection(SalvarrOptions.Section))
     .PostConfigure(o => o.WithDefaults());
 
+builder.Services.AddHttpClient("arr", client => client.Timeout = TimeSpan.FromSeconds(15));
+builder.Services.AddSingleton<ArrService>();
 builder.Services.AddSingleton<MediaProbe>();
 builder.Services.AddSingleton<RecycleBinService>();
+builder.Services.AddSingleton<FileActions>();
 
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();

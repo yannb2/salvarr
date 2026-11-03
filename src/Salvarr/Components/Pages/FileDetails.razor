@@ -1,6 +1,8 @@
 @page "/file/{Id}"
 @inject RecycleBinService Bins
 @inject MediaProbe Probe
+@inject FileActions Actions
+@inject IJSRuntime JS
 
 <PageTitle>@(_file?.FileName ?? "File") · Salvarr</PageTitle>
 
@@ -36,6 +38,12 @@ else
 
                 <dt class="col-sm-3 col-xl-2">Size</dt>
                 <dd class="col-sm-9 col-xl-10">@Format.Size(_file.SizeBytes)</dd>
+
+                @if (_file.Retention != null)
+                {
+                    <dt class="col-sm-3 col-xl-2">Automatic delete</dt>
+                    <dd class="col-sm-9 col-xl-10"><RetentionBadge Retention="_file.Retention" Long="true"/></dd>
+                }
 
                 <dt class="col-sm-3 col-xl-2">In the bin</dt>
                 <dd class="col-sm-9 col-xl-10 sv-path">@_file.FullPath</dd>
@@ -84,6 +92,52 @@ else
         </div>
     </div>
 
+    @if (_result != null)
+    {
+        <div class="alert @(_result.Success ? "alert-success" : "alert-danger")">
+            @_result.Message
+            @if (_result.Success)
+            {
+                <a href="" class="ms-2">Back to the recycle bin</a>
+            }
+        </div>
+    }
+
+    @if (Actions.Enabled && !_done)
+    {
+        var blocker = FileActions.RestoreBlocker(_file);
+        var arrName = _file.Bin.Library.Kind == LibraryKind.Series ? "Sonarr" : "Radarr";
+        <div class="card mb-3">
+            <div class="card-body d-flex flex-wrap align-items-center gap-2">
+                <button class="btn btn-sm btn-success" disabled="@(blocker != null || _busy)" @onclick="Restore"
+                        title="@(blocker ?? $"Move it back to {_file.Match.OriginalPath}")">
+                    <i class="bi bi-arrow-counterclockwise me-1"></i>Restore
+                </button>
+                <div class="form-check mb-0">
+                    <input class="form-check-input" type="checkbox" id="rescan" @bind="_rescan" disabled="@(blocker != null)"/>
+                    <label class="form-check-label small" for="rescan">then ask @arrName to rescan</label>
+                </div>
+                <button class="btn btn-sm btn-outline-danger ms-auto" disabled="@_busy" @onclick="Delete">
+                    <i class="bi bi-trash me-1"></i>Delete for good
+                </button>
+                @if (blocker != null)
+                {
+                    <div class="w-100 small text-muted">Restore is not possible: @blocker</div>
+                }
+                else if (HasLibraryFile && _rescan)
+                {
+                    <div class="w-100 small text-muted">
+                        @arrName keeps one file per @(_file.Bin.Library.Kind == LibraryKind.Series ? "episode" : "movie").
+                        If the restored file scores the same or better than the one in the library, the rescan may make
+                        @arrName use it instead. Leave the box unticked to keep it as a second version.
+                    </div>
+                }
+            </div>
+        </div>
+    }
+
+    @if (!_done)
+    {
     <ul class="nav nav-tabs mb-3">
         @if (HasLibraryFile)
         {
@@ -181,6 +235,7 @@ else
 
             break;
     }
+    }
 }
 
 @code {
@@ -217,6 +272,11 @@ else
     private string? _rawText;
     private int _rawRequest;
 
+    private bool _busy;
+    private bool _done;
+    private bool _rescan = true;
+    private ActionResult? _result;
+
     private bool HasLibraryFile => _file?.Match.Candidates.Count > 0;
 
     private string? LibraryPath => HasLibraryFile ? _file!.Match.Candidates[_candidateIndex].Path : null;
@@ -224,6 +284,8 @@ else
     protected override async Task OnParametersSetAsync()
     {
         _loadingFile = true;
+        _done = false;
+        _result = null;
         _file = await Bins.FindAsync(Id);
         _loadingFile = false;
         _candidateIndex = 0;
@@ -287,6 +349,53 @@ else
         if (request == _rawRequest)
         {
             _rawText = text;
+        }
+    }
+
+    private async Task Restore()
+    {
+        if (_file == null || !await JS.InvokeAsync<bool>("confirm", $"Move this file back to\n{_file.Match.OriginalPath}?"))
+        {
+            return;
+        }
+
+        _busy = true;
+        try
+        {
+            _result = await Actions.RestoreAsync(_file, _rescan);
+            await AfterAction();
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private async Task Delete()
+    {
+        if (_file == null || !await JS.InvokeAsync<bool>("confirm", $"Delete {_file.FileName} for good? This cannot be undone."))
+        {
+            return;
+        }
+
+        _busy = true;
+        try
+        {
+            _result = Actions.Delete(_file);
+            await AfterAction();
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private async Task AfterAction()
+    {
+        if (_result?.Success == true)
+        {
+            _done = true;
+            await Bins.RescanAsync();
         }
     }
 

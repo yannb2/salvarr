@@ -1,0 +1,40 @@
+@* When Radarr or Sonarr will empty this file out of its recycle bin. *@
+@if (Retention == null)
+{
+    <span class="text-muted" title="Not in Radarr's or Sonarr's recycle bin, or they are not set up in Salvarr">–</span>
+}
+else if (Retention.KeptForever)
+{
+    <span class="text-muted" title="@Retention.AppName's cleanup is off (0 days): the file stays until it is removed by hand">Kept</span>
+}
+else if (Retention.DeleteAtUtc is { } deleteAt)
+{
+    var left = deleteAt - DateTime.UtcNow;
+    <span class="@(left < TimeSpan.FromDays(1) ? "text-danger" : left < TimeSpan.FromDays(3) ? "text-warning" : null) text-nowrap"
+          title="@Tip(deleteAt)">
+        <i class="bi bi-hourglass-split me-1"></i>@Format.TimeUntil(deleteAt)
+    </span>
+    @if (Long)
+    {
+        <div class="small text-muted">@Tip(deleteAt)</div>
+    }
+}
+else if (Retention.ExpiresUtc is { } expires)
+{
+    <span class="text-nowrap" title="@Retention.AppName keeps files @Retention.CleanupDays days; its cleanup schedule is unknown">
+        after @Format.LocalDate(expires)
+    </span>
+}
+
+@code {
+    [Parameter] public RetentionInfo? Retention { get; set; }
+
+    /// <summary>Also print the explanation under the badge.</summary>
+    [Parameter] public bool Long { get; set; }
+
+    private string Tip(DateTime deleteAt)
+    {
+        return $"{Retention!.AppName} keeps files {Retention.CleanupDays} days, so this one expires " +
+               $"{Format.LocalDate(Retention.ExpiresUtc!.Value)} and goes at its cleanup run on {Format.LocalDate(deleteAt)}.";
+    }
+}

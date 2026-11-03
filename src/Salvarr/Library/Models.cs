@@ -1,4 +1,5 @@
 using System.Text;
+using Salvarr.Arr;
 using Salvarr.Options;
 
 namespace Salvarr.Library;
@@ -36,6 +37,9 @@ public sealed class RecycledFile
     public DateTime ModifiedUtc { get; init; }
 
     public LibraryMatch Match { get; set; } = LibraryMatch.None;
+
+    /// <summary>When Radarr or Sonarr will delete it, if it is in their bin.</summary>
+    public RetentionInfo? Retention { get; set; }
 }
 
 /// <summary>Where a recycled file came from, and what is in the library there now.</summary>
@@ -74,6 +78,9 @@ public sealed class ScanResult
     public IReadOnlyList<string> Problems { get; init; } = [];
 
     public DateTime ScannedUtc { get; init; }
+
+    /// <summary>Radarr's and Sonarr's bin settings at the time of the scan.</summary>
+    public IReadOnlyList<ArrStatus> ArrStatuses { get; init; } = [];
 
     public TimeSpan Elapsed { get; init; }
 }
