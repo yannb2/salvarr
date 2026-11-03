@@ -1,0 +1,315 @@
+@page "/file/{Id}"
+@inject RecycleBinService Bins
+@inject MediaProbe Probe
+
+<PageTitle>@(_file?.FileName ?? "File") · Salvarr</PageTitle>
+
+<nav aria-label="breadcrumb" class="mb-2">
+    <ol class="breadcrumb mb-0 small">
+        <li class="breadcrumb-item"><a href="">Recycle bin</a></li>
+        <li class="breadcrumb-item active sv-file-name" aria-current="page">@(_file?.FileName ?? "File")</li>
+    </ol>
+</nav>
+
+@if (_loadingFile)
+{
+    <div class="text-center py-5"><span class="spinner-border" role="status"></span></div>
+}
+else if (_file == null)
+{
+    <div class="alert alert-warning">
+        <i class="bi bi-exclamation-triangle me-2"></i>This file is not in a recycle bin any more.
+        <a href="">Back to the recycle bin</a>.
+    </div>
+}
+else
+{
+    <div class="border-bottom pb-2 mb-3">
+        <h2 class="mb-1 sv-file-name fs-4">@_file.FileName</h2>
+    </div>
+
+    <div class="card mb-3">
+        <div class="card-body">
+            <dl class="row mb-0 small">
+                <dt class="col-sm-3 col-xl-2">Deleted</dt>
+                <dd class="col-sm-9 col-xl-10">@Format.TimeAgo(_file.DeletedUtc) (@Format.LocalDate(_file.DeletedUtc))</dd>
+
+                <dt class="col-sm-3 col-xl-2">Size</dt>
+                <dd class="col-sm-9 col-xl-10">@Format.Size(_file.SizeBytes)</dd>
+
+                <dt class="col-sm-3 col-xl-2">In the bin</dt>
+                <dd class="col-sm-9 col-xl-10 sv-path">@_file.FullPath</dd>
+
+                <dt class="col-sm-3 col-xl-2">Was at</dt>
+                <dd class="col-sm-9 col-xl-10 sv-path">
+                    @(_file.Match.OriginalPath ?? "Unknown")
+                    @if (_file.Match.TitleFolder == null)
+                    {
+                        <span class="badge text-bg-secondary ms-1">guess</span>
+                    }
+                </dd>
+
+                <dt class="col-sm-3 col-xl-2">In the library now</dt>
+                <dd class="col-sm-9 col-xl-10">
+                    @if (_file.Match.Candidates.Count == 0)
+                    {
+                        <span class="text-warning">
+                            <i class="bi bi-dash-circle me-1"></i>
+                            @(_file.Match.TitleFolder == null
+                                ? "Nothing. The movie or show folder is not in the library any more."
+                                : "Nothing matches it in the folder.")
+                        </span>
+                        @if (_file.Match.TitleFolder != null)
+                        {
+                            <div class="sv-path text-muted">@_file.Match.TitleFolder</div>
+                        }
+                    }
+                    else if (_file.Match.Candidates.Count == 1)
+                    {
+                        <div class="sv-path">@_file.Match.Candidates[0].Path</div>
+                        <div class="text-muted">@_file.Match.Candidates[0].Reason</div>
+                    }
+                    else
+                    {
+                        <select class="form-select form-select-sm" value="@_candidateIndex"
+                                @onchange="CandidateChanged">
+                            @foreach (var (candidate, i) in _file.Match.Candidates.Select((c, i) => (c, i)))
+                            {
+                                <option value="@i">@Path.GetFileName(candidate.Path) (@candidate.Reason)</option>
+                            }
+                        </select>
+                    }
+                </dd>
+            </dl>
+        </div>
+    </div>
+
+    <ul class="nav nav-tabs mb-3">
+        @if (HasLibraryFile)
+        {
+            <li class="nav-item">
+                <button class="nav-link @(_tab == Tab.Compare ? "active" : null)" @onclick="() => _tab = Tab.Compare">
+                    <i class="bi bi-layout-split me-1"></i>Compare
+                </button>
+            </li>
+        }
+        <li class="nav-item">
+            <button class="nav-link @(_tab == Tab.Recycled ? "active" : null)" @onclick="() => _tab = Tab.Recycled">
+                <i class="bi bi-recycle me-1"></i>Deleted file
+            </button>
+        </li>
+        @if (HasLibraryFile)
+        {
+            <li class="nav-item">
+                <button class="nav-link @(_tab == Tab.Library ? "active" : null)" @onclick="() => _tab = Tab.Library">
+                    <i class="bi bi-collection me-1"></i>Library file
+                </button>
+            </li>
+        }
+        <li class="nav-item">
+            <button class="nav-link @(_tab == Tab.Raw ? "active" : null)" @onclick="OpenRawTab">
+                <i class="bi bi-terminal me-1"></i>MediaInfo
+            </button>
+        </li>
+    </ul>
+
+    @switch (_tab)
+    {
+        case Tab.Compare:
+            if (_recycled?.Details is { } left && _library?.Details is { } right)
+            {
+                <CompareView Recycled="left" Library="right"/>
+            }
+            else
+            {
+                @ProbeState(_recycled)
+                @ProbeState(_library)
+            }
+
+            break;
+
+        case Tab.Recycled:
+            if (_recycled?.Details is { } recycled)
+            {
+                <MediaView Details="recycled"/>
+            }
+            else
+            {
+                @ProbeState(_recycled)
+            }
+
+            break;
+
+        case Tab.Library:
+            if (_library?.Details is { } library)
+            {
+                <MediaView Details="library"/>
+            }
+            else
+            {
+                @ProbeState(_library)
+            }
+
+            break;
+
+        case Tab.Raw:
+            <div class="d-flex flex-wrap gap-2 mb-3">
+                <div class="btn-group btn-group-sm">
+                    <button class="btn @(_rawSide == RawSide.Recycled ? "btn-primary" : "btn-outline-primary")"
+                            @onclick="() => ShowRaw(RawSide.Recycled, _rawFormat)">Deleted file</button>
+                    @if (HasLibraryFile)
+                    {
+                        <button class="btn @(_rawSide == RawSide.Library ? "btn-primary" : "btn-outline-primary")"
+                                @onclick="() => ShowRaw(RawSide.Library, _rawFormat)">Library file</button>
+                    }
+                </div>
+                <div class="btn-group btn-group-sm">
+                    <button class="btn @(_rawFormat == RawFormat.MediaInfo ? "btn-secondary" : "btn-outline-secondary")"
+                            @onclick="() => ShowRaw(_rawSide, RawFormat.MediaInfo)">mediainfo</button>
+                    <button class="btn @(_rawFormat == RawFormat.FFprobe ? "btn-secondary" : "btn-outline-secondary")"
+                            @onclick="() => ShowRaw(_rawSide, RawFormat.FFprobe)">ffprobe JSON</button>
+                </div>
+            </div>
+            @if (_rawText == null)
+            {
+                <div class="text-center py-4"><span class="spinner-border" role="status"></span></div>
+            }
+            else
+            {
+                <pre class="sv-raw">@_rawText</pre>
+            }
+
+            break;
+    }
+}
+
+@code {
+    [Parameter] public string Id { get; set; } = "";
+
+    private enum Tab
+    {
+        Compare,
+        Recycled,
+        Library,
+        Raw
+    }
+
+    private enum RawSide
+    {
+        Recycled,
+        Library
+    }
+
+    private enum RawFormat
+    {
+        MediaInfo,
+        FFprobe
+    }
+
+    private RecycledFile? _file;
+    private bool _loadingFile = true;
+    private int _candidateIndex;
+    private ProbeResult? _recycled;
+    private ProbeResult? _library;
+    private Tab _tab = Tab.Recycled;
+    private RawSide _rawSide = RawSide.Recycled;
+    private RawFormat _rawFormat = RawFormat.MediaInfo;
+    private string? _rawText;
+    private int _rawRequest;
+
+    private bool HasLibraryFile => _file?.Match.Candidates.Count > 0;
+
+    private string? LibraryPath => HasLibraryFile ? _file!.Match.Candidates[_candidateIndex].Path : null;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _loadingFile = true;
+        _file = await Bins.FindAsync(Id);
+        _loadingFile = false;
+        _candidateIndex = 0;
+        _recycled = _library = null;
+        _rawText = null;
+        _rawRequest++;
+        _rawSide = RawSide.Recycled;
+        _tab = HasLibraryFile ? Tab.Compare : Tab.Recycled;
+
+        if (_file == null)
+        {
+            return;
+        }
+
+        StateHasChanged();
+
+        // Both files are read at the same time.
+        var recycled = Probe.ProbeAsync(_file.FullPath);
+        var library = LibraryPath is { } path ? Probe.ProbeAsync(path) : null;
+        _recycled = await recycled;
+        _library = library == null ? null : await library;
+    }
+
+    private async Task CandidateChanged(ChangeEventArgs e)
+    {
+        if (!int.TryParse(e.Value?.ToString(), out var index) || _file == null
+            || index < 0 || index >= _file.Match.Candidates.Count)
+        {
+            return;
+        }
+
+        _candidateIndex = index;
+        _library = null;
+        StateHasChanged();
+        _library = await Probe.ProbeAsync(_file.Match.Candidates[index].Path);
+        if (_tab == Tab.Raw && _rawSide == RawSide.Library)
+        {
+            await ShowRaw(RawSide.Library, _rawFormat);
+        }
+    }
+
+    private async Task ShowRaw(RawSide side, RawFormat format)
+    {
+        _rawSide = side;
+        _rawFormat = format;
+        _rawText = null;
+        var request = ++_rawRequest;
+
+        var path = side == RawSide.Library ? LibraryPath : _file?.FullPath;
+        if (path == null)
+        {
+            return;
+        }
+
+        StateHasChanged();
+        var text = format == RawFormat.MediaInfo
+            ? await Probe.MediaInfoAsync(path)
+            : (await Probe.ProbeAsync(path)).RawJson ?? "ffprobe printed nothing.";
+
+        // A slower earlier request must not overwrite a newer one.
+        if (request == _rawRequest)
+        {
+            _rawText = text;
+        }
+    }
+
+    private async Task OpenRawTab()
+    {
+        _tab = Tab.Raw;
+        await ShowRaw(_rawSide, _rawFormat);
+    }
+
+    private static RenderFragment ProbeState(ProbeResult? result) => builder =>
+    {
+        if (result == null)
+        {
+            builder.AddMarkupContent(0,
+                "<div class=\"text-center py-4\"><span class=\"spinner-border\" role=\"status\"></span>" +
+                "<div class=\"small text-muted mt-2\">Reading the file…</div></div>");
+        }
+        else if (result.Error != null)
+        {
+            builder.OpenElement(1, "div");
+            builder.AddAttribute(2, "class", "alert alert-danger");
+            builder.AddContent(3, result.Error);
+            builder.CloseElement();
+        }
+    };
+}

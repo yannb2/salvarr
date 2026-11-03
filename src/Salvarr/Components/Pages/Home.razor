@@ -1,0 +1,291 @@
+@page "/"
+@inject RecycleBinService Bins
+@inject NavigationManager Navigation
+
+<PageTitle>Recycle bin · Salvarr</PageTitle>
+
+<div class="d-flex justify-content-between align-items-center border-bottom pb-2 mb-4 sv-page-header">
+    <h2 class="mb-0"><i class="bi bi-recycle me-2"></i>Recycle bin</h2>
+    <button class="btn btn-sm btn-outline-primary" @onclick="Refresh" disabled="@_loading">
+        @if (_loading)
+        {
+            <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+        }
+        else
+        {
+            <i class="bi bi-arrow-clockwise me-1"></i>
+        }
+        Refresh
+    </button>
+</div>
+
+@if (_scan == null)
+{
+    <div class="text-center py-5"><span class="spinner-border" role="status"></span></div>
+    return;
+}
+
+@foreach (var problem in _scan.Problems)
+{
+    <div class="alert alert-warning py-2"><i class="bi bi-exclamation-triangle me-2"></i>@problem</div>
+}
+
+@if (_scan.Bins.Count == 0)
+{
+    <div class="alert alert-info">
+        <i class="bi bi-info-circle me-2"></i>
+        No recycle bin folders were found. Salvarr looks for folders named
+        <code>@string.Join(", ", Bins.Options.RecycleFolderNames)</code> in
+        @string.Join(", ", Bins.Options.Libraries.Select(l => l.Path)). See the <a href="status">Status</a> page.
+    </div>
+}
+
+<div class="row g-3 mb-4">
+    <div class="col-6 col-lg-3">
+        <div class="card h-100">
+            <div class="card-body">
+                <div class="text-muted small">Video files</div>
+                <div class="fs-4 fw-semibold">@_scan.Files.Count</div>
+                <div class="small text-muted">in @_scan.Bins.Count @(_scan.Bins.Count == 1 ? "bin" : "bins")</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-lg-3">
+        <div class="card h-100">
+            <div class="card-body">
+                <div class="text-muted small">Space used</div>
+                <div class="fs-4 fw-semibold">@Format.Size(_scan.Files.Sum(f => f.SizeBytes) + _scan.OtherFileBytes)</div>
+                <div class="small text-muted">
+                    @if (_scan.OtherFileCount > 0)
+                    {
+                        <span>incl. @_scan.OtherFileCount other files (@Format.Size(_scan.OtherFileBytes))</span>
+                    }
+                    else
+                    {
+                        <span>videos only</span>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-lg-3">
+        <div class="card h-100">
+            <div class="card-body">
+                <div class="text-muted small">Oldest</div>
+                <div class="fs-4 fw-semibold">
+                    @(_scan.Files.Count == 0 ? "–" : Format.TimeAgo(_scan.Files.Min(f => f.DeletedUtc)))
+                </div>
+                <div class="small text-muted">deleted</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-lg-3">
+        <div class="card h-100">
+            <div class="card-body">
+                <div class="text-muted small">Not in the library</div>
+                <div class="fs-4 fw-semibold">@_scan.Files.Count(f => f.Match.Best == null)</div>
+                <div class="small text-muted">nothing replaced them</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mb-3 g-2 sv-filter-row">
+    <div class="col">
+        <input class="form-control form-control-sm" type="search" placeholder="Search file names and folders"
+               @bind="Search" @bind:event="oninput"/>
+    </div>
+    <div class="col-12 col-md-auto d-flex flex-wrap gap-2 align-items-center">
+        @if (Bins.Options.Libraries.Count > 1)
+        {
+            <select class="form-select form-select-sm" style="width: auto;" @bind="LibraryFilter">
+                <option value="">All libraries</option>
+                @foreach (var library in Bins.Options.Libraries)
+                {
+                    <option value="@library.Name">@library.Name</option>
+                }
+            </select>
+        }
+        <select class="form-select form-select-sm" style="width: auto;" @bind="MatchFilter">
+            <option value="">All files</option>
+            <option value="replaced">Replaced in the library</option>
+            <option value="gone">Not in the library</option>
+        </select>
+    </div>
+</div>
+
+@{
+    var files = Filtered().ToList();
+}
+
+@if (files.Count == 0)
+{
+    <p class="text-muted">@(_scan.Files.Count == 0 ? "The recycle bins are empty." : "Nothing matches the filters.")</p>
+}
+else
+{
+    <div class="card">
+        <div class="card-body p-0">
+            <table class="table table-hover table-sm mb-0 align-middle sv-card-table">
+                <thead>
+                <tr>
+                    <th class="ps-3">@SortHeader("File", SortColumn.Name)</th>
+                    <th>@SortHeader("Library", SortColumn.Library)</th>
+                    <th class="text-end">@SortHeader("Size", SortColumn.Size)</th>
+                    <th>@SortHeader("Deleted", SortColumn.Deleted)</th>
+                    <th>In the library now</th>
+                </tr>
+                </thead>
+                <tbody>
+                @foreach (var file in files.Take(_shown))
+                {
+                    <tr class="sv-clickable-row" @onclick="() => Open(file)">
+                        <td class="ps-3">
+                            <a href="file/@file.Id" class="sv-file-name text-decoration-none" @onclick:stopPropagation="true">
+                                @file.FileName
+                            </a>
+                            @if (!string.IsNullOrEmpty(file.RelativeFolder))
+                            {
+                                <div class="small text-muted sv-file-name">@file.RelativeFolder</div>
+                            }
+                        </td>
+                        <td class="sv-cell-inline"><span class="badge text-bg-secondary">@file.Bin.Library.Name</span></td>
+                        <td class="text-end text-nowrap sv-cell-inline">@Format.Size(file.SizeBytes)</td>
+                        <td class="text-nowrap sv-cell-inline" title="@Format.LocalDate(file.DeletedUtc)">@Format.TimeAgo(file.DeletedUtc)</td>
+                        <td>
+                            @if (file.Match.Best is { } best)
+                            {
+                                <i class="bi bi-arrow-left-right text-success me-1" title="@best.Reason"></i>
+                                <span class="small sv-file-name">@Path.GetFileName(best.Path)</span>
+                                @if (file.Match.Candidates.Count > 1)
+                                {
+                                    <span class="badge text-bg-light ms-1">+@(file.Match.Candidates.Count - 1)</span>
+                                }
+                            }
+                            else
+                            {
+                                <span class="small text-warning"><i class="bi bi-dash-circle me-1"></i>Not in the library</span>
+                            }
+                        </td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    @if (files.Count > _shown)
+    {
+        <div class="text-center mt-3">
+            <button class="btn btn-sm btn-outline-secondary" @onclick="() => _shown += PageSize">
+                Show more (@(files.Count - _shown) left)
+            </button>
+        </div>
+    }
+
+    <p class="small text-muted mt-3">
+        Scanned @Format.TimeAgo(_scan.ScannedUtc) in @_scan.Elapsed.TotalSeconds.ToString("0.0") s.
+    </p>
+}
+
+@code {
+    private const int PageSize = 200;
+
+    private enum SortColumn
+    {
+        Name,
+        Library,
+        Size,
+        Deleted
+    }
+
+    private ScanResult? _scan;
+    private bool _loading;
+    private int _shown = PageSize;
+    private SortColumn _sort = SortColumn.Deleted;
+    private bool _descending = true;
+
+    private string Search { get; set; } = "";
+    private string LibraryFilter { get; set; } = "";
+    private string MatchFilter { get; set; } = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        _scan = await Bins.GetAsync(TimeSpan.FromMinutes(1));
+    }
+
+    private async Task Refresh()
+    {
+        _loading = true;
+        try
+        {
+            _scan = await Bins.RescanAsync(clearProbeCache: true);
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private IEnumerable<RecycledFile> Filtered()
+    {
+        IEnumerable<RecycledFile> files = _scan?.Files ?? [];
+
+        if (!string.IsNullOrWhiteSpace(Search))
+        {
+            var words = Search.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            files = files.Where(f => words.All(w => f.RelativePath.Contains(w, StringComparison.OrdinalIgnoreCase)));
+        }
+
+        if (!string.IsNullOrEmpty(LibraryFilter))
+        {
+            files = files.Where(f => f.Bin.Library.Name == LibraryFilter);
+        }
+
+        files = MatchFilter switch
+        {
+            "replaced" => files.Where(f => f.Match.Best != null),
+            "gone" => files.Where(f => f.Match.Best == null),
+            _ => files
+        };
+
+        return (_sort, _descending) switch
+        {
+            (SortColumn.Name, false) => files.OrderBy(f => f.FileName, StringComparer.OrdinalIgnoreCase),
+            (SortColumn.Name, true) => files.OrderByDescending(f => f.FileName, StringComparer.OrdinalIgnoreCase),
+            (SortColumn.Library, false) => files.OrderBy(f => f.Bin.Library.Name).ThenByDescending(f => f.DeletedUtc),
+            (SortColumn.Library, true) => files.OrderByDescending(f => f.Bin.Library.Name).ThenByDescending(f => f.DeletedUtc),
+            (SortColumn.Size, false) => files.OrderBy(f => f.SizeBytes),
+            (SortColumn.Size, true) => files.OrderByDescending(f => f.SizeBytes),
+            (SortColumn.Deleted, false) => files.OrderBy(f => f.DeletedUtc),
+            _ => files.OrderByDescending(f => f.DeletedUtc)
+        };
+    }
+
+    private RenderFragment SortHeader(string label, SortColumn column) =>
+        @<button class="btn btn-link btn-sm p-0 text-decoration-none fw-semibold text-body" @onclick="() => SortBy(column)">
+            @label
+            @if (_sort == column)
+            {
+                <i class="bi @(_descending ? "bi-caret-down-fill" : "bi-caret-up-fill") ms-1"></i>
+            }
+        </button>;
+
+    private void SortBy(SortColumn column)
+    {
+        if (_sort == column)
+        {
+            _descending = !_descending;
+        }
+        else
+        {
+            _sort = column;
+            _descending = column is SortColumn.Size or SortColumn.Deleted;
+        }
+    }
+
+    private void Open(RecycledFile file)
+    {
+        Navigation.NavigateTo($"file/{file.Id}");
+    }
+}
