@@ -69,17 +69,13 @@ public sealed class MediaProbe(IOptions<SalvarrOptions> options, ILogger<MediaPr
     }
 
     /// <summary>
-    /// Fills in the audio bit rates the file does not state (lossless tracks
-    /// without MKV statistics tags): mediainfo's average or peak, else measured
-    /// on a few samples. Done after the page shows the rest, once per file.
+    /// Fills in what ffprobe leaves out, from mediainfo: bit depth, stream size and
+    /// the subtitles' count of elements, and the audio bit rates the file does not
+    /// state (lossless tracks without MKV statistics tags), else measured on a few
+    /// samples. Done after the page shows the rest, once per file.
     /// </summary>
     public Task FillAudioBitRatesAsync(MediaDetails details)
     {
-        if (details.Audio.All(a => a.BitRate != null))
-        {
-            return Task.CompletedTask;
-        }
-
         // The details are cached by the same key, so they are filled once and stay filled.
         return _audioBitRates.GetOrAdd(CacheKey(details.Path), _ => FillAudioBitRatesUncachedAsync(details));
     }
@@ -96,6 +92,7 @@ public sealed class MediaProbe(IOptions<SalvarrOptions> options, ILogger<MediaPr
         {
             var info = await ProcessRunner.RunAsync(MediaInfoExecutable, ["--Output=JSON", details.Path], TimeSpan.FromSeconds(60));
             var rates = info.Success ? AudioBitRate.ParseMediaInfo(info.Output) : [];
+            MediaInfoTracks.Apply(details, info.Success ? MediaInfoTracks.Parse(info.Output) : null);
             Dictionary<int, long>? measured = null;
             if (options.Value.EstimateAudioBitRate && AudioBitRate.NeedsMeasuring(details, rates))
             {
