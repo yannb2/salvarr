@@ -13,6 +13,8 @@ file to where it was (and ask Radarr or Sonarr to rescan) or delete it for good.
 
 ![Comparison with the library file](docs/compare.png)
 
+![Settings](docs/settings.png)
+
 ## What it does
 
 - **Recycle bin list.** Every video file in the `.recycle` folders of `/movies`
@@ -46,8 +48,15 @@ file to where it was (and ask Radarr or Sonarr to rescan) or delete it for good.
   them use it; untick "rescan" to keep it as a second version.
 - **Delete for good** (changes on), one file or every listed file deleted more
   than N days ago.
-- **Status.** Libraries, the bins found, Radarr and Sonarr settings, whether
-  changes are on, and the tool versions.
+- **Settings.** Three tabs, as in Ripparr and Muxarr: Libraries (paths, bin
+  names, what is read from each file, whether changes are on), Integrations
+  (Radarr and Sonarr: URL, key, how long they keep files, a Test button) and
+  Status (the bins found and the tool versions). The old `/status` link opens
+  the Status tab. Values come from the environment variables.
+- **Logs.** The app's last 2000 log lines, with a level filter, search and
+  exceptions on a click.
+- **Light or dark** from the sidebar button (moon and Dark, sun and Light),
+  kept in the browser.
 
 ## How it finds things
 

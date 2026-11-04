@@ -1,5 +1,6 @@
 @implements IDisposable
 @inject ToolStatusService Tools
+@inject IJSRuntime JS
 
 <nav class="sv-sidebar @(_collapsed ? "collapsed" : "") @(MobileOpen ? "sv-mobile-open" : "")">
     <div class="sv-sidebar-header d-none d-md-flex">
@@ -18,9 +19,9 @@
                 </NavLink>
             </li>
             <li class="nav-item">
-                <NavLink class="nav-link" href="status" @onclick="Close">
-                    <i class="bi bi-info-circle"></i>
-                    <span>Status</span>
+                <NavLink class="nav-link" href="logs" @onclick="Close">
+                    <i class="bi bi-journal-text"></i>
+                    <span>Logs</span>
                 </NavLink>
             </li>
             <li class="nav-item">
@@ -33,15 +34,21 @@
                     }
                 </NavLink>
             </li>
+            <li class="nav-item">
+                <NavLink class="nav-link" href="settings" @onclick="Close">
+                    <i class="bi bi-gear"></i>
+                    <span>Settings</span>
+                </NavLink>
+            </li>
         </ul>
     </div>
 
     <div class="sv-sidebar-footer">
         <ul class="nav flex-column w-100">
             <li class="nav-item">
-                <button class="nav-link w-100" onclick="salvarrTheme.toggle()">
-                    <i class="bi bi-circle-half"></i>
-                    <span>Light / dark</span>
+                <button class="nav-link w-100" @onclick="ToggleTheme" title="Switch to @(_dark ? "light" : "dark")">
+                    <i class="bi @(_dark ? "bi-moon-fill" : "bi-sun-fill") sv-theme-icon @(_dark ? "" : "light")"></i>
+                    <span>@(_dark ? "Dark" : "Light")</span>
                 </button>
             </li>
         </ul>
@@ -71,11 +78,25 @@
 
     private bool _collapsed;
 
+    /// <summary>The theme lives in the browser (localStorage); dark until the first render says otherwise.</summary>
+    private bool _dark = true;
+
     protected override void OnInitialized() => Tools.Changed += OnToolsChanged;
 
     private void OnToolsChanged() => InvokeAsync(StateHasChanged);
 
     public void Dispose() => Tools.Changed -= OnToolsChanged;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            _dark = await JS.InvokeAsync<string>("salvarrTheme.get") != "light";
+            StateHasChanged();
+        }
+    }
+
+    private async Task ToggleTheme() => _dark = await JS.InvokeAsync<string>("salvarrTheme.toggle") != "light";
 
     private async Task Close()
     {
