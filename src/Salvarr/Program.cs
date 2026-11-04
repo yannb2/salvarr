@@ -15,10 +15,15 @@ CultureInfo.DefaultThreadCurrentUICulture = CultureInfo.InvariantCulture;
 var builder = WebApplication.CreateBuilder(args);
 
 // ASP.NET's data-protection keys (antiforgery tokens) in /config/keys, so they survive an update.
-DataProtectionKeys.PersistKeysIn(builder, builder.Configuration["Salvarr:ConfigFolder"] ?? "/config", "Salvarr");
+var configFolder = builder.Configuration["Salvarr:ConfigFolder"] ?? "/config";
+DataProtectionKeys.PersistKeysIn(builder, configFolder, "Salvarr");
 
 // The Logs page: the app's recent log lines, in memory.
 var memoryLog = new MemoryLog();
+// Also in /config/logs, so the Logs page's second tab has the last lines from before a restart
+// (how many: Logs__KeepLines, default 2000).
+memoryLog.KeepFile(Path.Combine(configFolder, "logs", "salvarr.jsonl"),
+    builder.Configuration.GetValue(MemoryLog.KeepLinesKey, MemoryLog.Capacity));
 builder.Logging.AddProvider(new MemoryLoggerProvider(memoryLog));
 builder.Services.AddSingleton(memoryLog);
 
