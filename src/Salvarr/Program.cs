@@ -1,4 +1,5 @@
 using System.Globalization;
+using Arrkit.Hosting;
 using Arrkit.Logging;
 using Salvarr.Arr;
 using Salvarr.Components;
@@ -12,6 +13,9 @@ CultureInfo.DefaultThreadCurrentCulture = CultureInfo.InvariantCulture;
 CultureInfo.DefaultThreadCurrentUICulture = CultureInfo.InvariantCulture;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// ASP.NET's data-protection keys (antiforgery tokens) in /config/keys, so they survive an update.
+DataProtectionKeys.PersistKeysIn(builder, builder.Configuration["Salvarr:ConfigFolder"] ?? "/config", "Salvarr");
 
 // The Logs page: the app's recent log lines, in memory.
 var memoryLog = new MemoryLog();
