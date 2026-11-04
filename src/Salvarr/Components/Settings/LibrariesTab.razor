@@ -1,0 +1,122 @@
+@inject RecycleBinService Bins
+
+<p class="text-body-secondary small">
+    What Salvarr runs with. These values come from the environment variables (<code>Salvarr__…</code>)
+    and need a restart to change.
+</p>
+
+@{
+    var options = Bins.Options;
+}
+
+<div class="row g-3">
+    <div class="col-12 col-xl-6">
+        <div class="card h-100">
+            <div class="card-header"><i class="bi bi-collection me-2"></i>Libraries</div>
+            <div class="card-body p-0">
+                <table class="table table-sm mb-0">
+                    <thead>
+                    <tr>
+                        <th class="ps-3">Name</th>
+                        <th>Path</th>
+                        <th>Kind</th>
+                        <th class="pe-3">Mounted</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    @foreach (var library in options.Libraries)
+                    {
+                        <tr>
+                            <td class="ps-3">@library.Name</td>
+                            <td class="sv-path">@library.Path</td>
+                            <td>@library.Kind</td>
+                            <td class="pe-3">
+                                @if (Directory.Exists(library.Path))
+                                {
+                                    <i class="bi bi-check-circle text-success"></i>
+                                }
+                                else
+                                {
+                                    <i class="bi bi-x-circle text-danger"></i>
+                                }
+                            </td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+                <p class="small text-muted m-3">
+                    Set with <code>Salvarr__Libraries__0__Path</code>, <code>__Name</code> and <code>__Kind</code> (Movies or Series).
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12 col-xl-6">
+        <div class="card h-100">
+            <div class="card-header"><i class="bi bi-recycle me-2"></i>Recycle bins</div>
+            <table class="table table-sm mb-0 small">
+                <tbody>
+                <tr>
+                    <td class="ps-3 text-body-secondary">Folder names</td>
+                    <td class="pe-3"><code>@string.Join(", ", options.RecycleFolderNames)</code></td>
+                </tr>
+                <tr>
+                    <td class="ps-3 text-body-secondary">Looked for</td>
+                    <td class="pe-3">@options.SearchDepth @(options.SearchDepth == 1 ? "level" : "levels") below each library</td>
+                </tr>
+                <tr>
+                    <td class="ps-3 text-body-secondary">Video files</td>
+                    <td class="pe-3"><code>@string.Join(" ", options.VideoExtensions)</code></td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="col-12 col-xl-6">
+        <div class="card h-100">
+            <div class="card-header"><i class="bi bi-file-earmark-play me-2"></i>Reading files</div>
+            <table class="table table-sm mb-0 small">
+                <tbody>
+                @foreach (var (label, on, variable) in Reading(options))
+                {
+                    <tr>
+                        <td class="ps-3 text-body-secondary">@label</td>
+                        <td>@(on ? "on" : "off")</td>
+                        <td class="pe-3 text-end"><code>@variable</code></td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="col-12 col-xl-6">
+        <div class="card h-100">
+            <div class="card-header"><i class="bi bi-shield-lock me-2"></i>Changes</div>
+            <div class="card-body small">
+                @if (options.AllowChanges)
+                {
+                    <p class="mb-0"><i class="bi bi-unlock text-warning me-1"></i>
+                        Restore and delete are <strong>on</strong>. The libraries must be mounted read-write.</p>
+                }
+                else
+                {
+                    <p class="mb-0"><i class="bi bi-lock text-success me-1"></i>
+                        Salvarr is read-only. To turn on restore and delete, set <code>Salvarr__AllowChanges=true</code>
+                        and remove <code>:ro</code> from the <code>/movies</code> and <code>/tv</code> volumes.</p>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private static IEnumerable<(string Label, bool On, string Variable)> Reading(SalvarrOptions options) =>
+    [
+        ("HDR10+ check on the first frames", options.DetectHdr10Plus, "Salvarr__DetectHdr10Plus"),
+        ("Dolby Vision details (dovi_tool)", options.ReadDolbyVision, "Salvarr__ReadDolbyVision"),
+        ("Measure audio bit rates the file does not state", options.EstimateAudioBitRate, "Salvarr__EstimateAudioBitRate"),
+        ("Daily look for newer tools", options.Updates.Enabled, "Salvarr__Updates__Enabled")
+    ];
+}

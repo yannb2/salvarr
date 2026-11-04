@@ -1,0 +1,108 @@
+@inject ToolStatusService Tools
+@inject RecycleBinService Bins
+
+<div class="d-flex align-items-center gap-2 mb-3">
+    <p class="text-body-secondary small mb-0 me-auto">What Salvarr finds and runs with right now.</p>
+    <button class="btn btn-sm btn-outline-secondary" disabled="@(_scan == null)" @onclick="Rescan">
+        <i class="bi bi-arrow-clockwise me-1"></i>Look again
+    </button>
+</div>
+
+<div class="row g-3">
+    <div class="col-12 col-xl-6">
+        <div class="card h-100">
+            <div class="card-header"><i class="bi bi-recycle me-2"></i>Recycle bins found</div>
+            <div class="card-body p-0">
+                @if (_scan == null)
+                {
+                    <div class="text-center py-4"><span class="spinner-border" role="status"></span></div>
+                }
+                else if (_scan.Bins.Count == 0)
+                {
+                    <p class="sv-missing m-3">None.</p>
+                }
+                else
+                {
+                    <table class="table table-sm mb-0">
+                        <thead>
+                        <tr>
+                            <th class="ps-3">Path</th>
+                            <th>Library</th>
+                            <th class="text-end pe-3">Videos</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        @foreach (var bin in _scan.Bins)
+                        {
+                            <tr>
+                                <td class="ps-3 sv-path">@bin.Path</td>
+                                <td>@bin.Library.Name</td>
+                                <td class="text-end pe-3">@_scan.Files.Count(f => f.Bin == bin)</td>
+                            </tr>
+                        }
+                        </tbody>
+                    </table>
+                }
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12 col-xl-6">
+        <div class="card h-100">
+            <div class="card-header d-flex align-items-center"><i class="bi bi-tools me-2"></i>Tools<a href="tools" class="ms-auto small">Versions and updates</a></div>
+            <div class="card-body p-0">
+                <table class="table table-sm mb-0">
+                    <tbody>
+                    @foreach (var status in Tools.Statuses)
+                    {
+                        <tr>
+                            <td class="ps-3"><code>@status.Tool.Command</code></td>
+                            <td class="small">
+                                @if (status.Missing)
+                                {
+                                    <span class="text-danger">Not found</span>
+                                }
+                                else
+                                {
+                                    @(status.Installed ?? "?")
+                                }
+                                @if (status.UpdateAvailable)
+                                {
+                                    <a href="tools" class="badge text-bg-info ms-1 text-decoration-none">@status.Latest available</a>
+                                }
+                            </td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    <div class="col-12 col-xl-6">
+        <div class="card h-100">
+            <div class="card-header"><i class="bi bi-box me-2"></i>Salvarr</div>
+            <table class="table table-sm mb-0 small">
+                <tbody>
+                <tr><td class="ps-3 text-body-secondary">Version</td><td class="pe-3">@AppInfo.Version</td></tr>
+                <tr><td class="ps-3 text-body-secondary">Changes</td><td class="pe-3">@(Bins.Options.AllowChanges ? "restore and delete on" : "read-only")</td></tr>
+                @if (_scan != null)
+                {
+                    <tr><td class="ps-3 text-body-secondary">Files in the bins</td><td class="pe-3">@_scan.Files.Count</td></tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+@code {
+    private ScanResult? _scan;
+
+    protected override async Task OnInitializedAsync() => _scan = await Bins.GetAsync(TimeSpan.FromMinutes(1));
+
+    private async Task Rescan()
+    {
+        _scan = null;
+        _scan = await Bins.RescanAsync(refreshArr: true);
+    }
+}

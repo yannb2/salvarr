@@ -741,3 +741,15 @@ h2:focus {
 .sv-multiline {
     white-space: pre-line;
 }
+
+/* ---- Logs page ---- */
+
+.sv-log-message {
+    word-break: break-word;
+}
+
+.sv-log-exception {
+    white-space: pre-wrap;
+    max-height: 24rem;
+    overflow: auto;
+}

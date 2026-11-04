@@ -2,6 +2,7 @@ using System.Globalization;
 using Salvarr.Arr;
 using Salvarr.Components;
 using Salvarr.Library;
+using Salvarr.Logging;
 using Salvarr.Media;
 using Salvarr.Options;
 using Salvarr.Tools;
@@ -11,6 +12,11 @@ CultureInfo.DefaultThreadCurrentCulture = CultureInfo.InvariantCulture;
 CultureInfo.DefaultThreadCurrentUICulture = CultureInfo.InvariantCulture;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// The Logs page: the app's recent log lines, in memory.
+var memoryLog = new MemoryLog();
+builder.Logging.AddProvider(new MemoryLoggerProvider(memoryLog));
+builder.Services.AddSingleton(memoryLog);
 
 builder.Services.AddOptions<SalvarrOptions>()
     .Bind(builder.Configuration.GetSection(SalvarrOptions.Section))
