@@ -1,0 +1,160 @@
+@* One Radarr or Sonarr connection on the Integrations tab: URL, key, Test and Save, as in Ripparr. *@
+@inject LiveSettings Settings
+@inject ArrService Arr
+@inject RecycleBinService Bins
+
+<div class="border rounded p-4 h-100">
+    <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+        <i class="bi @Icon text-primary"></i>
+        <h5 class="mb-0">@App</h5>
+        @if (_status is { IsConfigured: true } status)
+        {
+            <span class="badge @(status.Error == null ? "text-bg-success" : "text-bg-danger")">
+                <i class="bi @(status.Error == null ? "bi-check-circle" : "bi-x-circle") me-1"></i>@(status.Error == null ? "Connected" : "Not connected")
+            </span>
+        }
+        <span class="badge text-bg-secondary ms-auto" title="Where the values below come from">
+            @(Settings.Saved(Key) ? "Saved here" : _arr.IsConfigured ? "From environment variables" : "Not set up")
+        </span>
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label" for="@($"{Id}-url")">URL</label>
+        <input id="@($"{Id}-url")" class="form-control" placeholder="@Example" @bind="_arr.Url"/>
+    </div>
+    <div class="mb-3">
+        <label class="form-label" for="@($"{Id}-key")">API key</label>
+        <input id="@($"{Id}-key")" type="password" class="form-control" autocomplete="off" @bind="_arr.ApiKey"/>
+        <small class="form-text text-muted">In @App: Settings &gt; General &gt; Security.</small>
+    </div>
+
+    @if (_status?.Settings is { } bin)
+    {
+        <table class="table table-sm small mb-3">
+            <tbody>
+            <tr>
+                <td class="text-body-secondary" style="width: 7rem">Recycle bin</td>
+                <td>
+                    <span class="sv-path">@bin.RecycleBinPath</span>
+                    @if (_bins.Any(b => Retention.SamePath(b.Path, bin.RecycleBinPath)))
+                    {
+                        <i class="bi bi-check-circle text-success ms-1" title="Listed by Salvarr"></i>
+                    }
+                    else
+                    {
+                        <span class="text-warning ms-1">(not listed: it is outside the library mounts, or Salvarr sees it under another path)</span>
+                    }
+                </td>
+            </tr>
+            <tr>
+                <td class="text-body-secondary">Keeps files</td>
+                <td>
+                    @(bin.CleanupDays > 0 ? $"{bin.CleanupDays} days" : "forever (0 days)")
+                    @if (bin.NextCleanupUtc is { } next)
+                    {
+                        <span>; next cleanup @Format.TimeUntil(next) (@Format.LocalDate(next))</span>
+                    }
+                </td>
+            </tr>
+            </tbody>
+        </table>
+    }
+    else if (_status is { IsConfigured: true, Error: { } error })
+    {
+        <div class="small mb-3 text-danger">@error</div>
+    }
+    else
+    {
+        <p class="small text-body-secondary">@Use</p>
+    }
+
+    @if (_message is { } message)
+    {
+        <div class="small mb-3 @(_messageOk ? "text-success" : "text-danger")">@message</div>
+    }
+
+    <div class="d-flex gap-2 flex-wrap">
+        <button type="button" class="btn btn-outline-primary btn-sm" disabled="@_busy" @onclick="Test">
+            @if (_busy)
+            {
+                <span class="spinner-border spinner-border-sm me-1"></span>
+            }
+            <i class="bi bi-plug me-1"></i>Test
+        </button>
+        <button type="button" class="btn btn-primary btn-sm" @onclick="Save"><i class="bi bi-check-lg me-1"></i>Save</button>
+        @if (Settings.Saved(Key))
+        {
+            <button type="button" class="btn btn-light border btn-sm" @onclick="Reset"
+                    title="Forget what was saved here: the environment variables apply again">
+                <i class="bi bi-arrow-counterclockwise me-1"></i>Use environment variables
+            </button>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public string App { get; set; } = "";
+    [Parameter, EditorRequired] public string Key { get; set; } = "";
+    [Parameter] public string Icon { get; set; } = "bi-film";
+    [Parameter] public string Example { get; set; } = "";
+    [Parameter] public string Use { get; set; } = "";
+
+    private string Id => App.ToLowerInvariant();
+    private ArrOptions _arr = new();
+    private ArrStatus? _status;
+    private IReadOnlyList<RecycleBin> _bins = [];
+    private string? _message;
+    private bool _messageOk;
+    private bool _busy;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Load();
+        _status = (await Arr.GetStatusesAsync()).FirstOrDefault(s => s.AppName == App);
+        _bins = (await Bins.GetAsync(TimeSpan.FromMinutes(5))).Bins;
+    }
+
+    private void Load()
+    {
+        var current = Key == LiveSettings.SonarrKey ? Arr.Sonarr : Arr.Radarr;
+        _arr = new ArrOptions { Url = current.Url, ApiKey = current.ApiKey };
+    }
+
+    private async Task Test()
+    {
+        _busy = true;
+        _message = null;
+        _status = await Arr.TestAsync(App, Trimmed());
+        if (!_status.IsConfigured)
+        {
+            (_message, _messageOk) = ("Fill in the URL and the API key.", false);
+        }
+
+        _busy = false;
+    }
+
+    private async Task Save()
+    {
+        var error = Settings.Save(Key, Trimmed());
+        (_message, _messageOk) = error == null ? ($"{App} saved.", true) : (error, false);
+        await Refresh();
+    }
+
+    private async Task Reset()
+    {
+        var error = Settings.Reset(Key);
+        Load();
+        (_message, _messageOk) = error == null ? ($"{App} uses the environment variables again.", true) : (error, false);
+        await Refresh();
+    }
+
+    /// <summary>The recycle bin list and the time left use the new values from now on.</summary>
+    private async Task Refresh()
+    {
+        Arr.Invalidate();
+        _status = (await Arr.GetStatusesAsync(refresh: true)).FirstOrDefault(s => s.AppName == App);
+        _ = Bins.RescanAsync(refreshArr: true);
+    }
+
+    private ArrOptions Trimmed() => new() { Url = _arr.Url.Trim(), ApiKey = _arr.ApiKey.Trim() };
+}

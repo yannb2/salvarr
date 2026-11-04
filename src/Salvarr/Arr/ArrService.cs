@@ -11,7 +11,8 @@ public sealed record ArrStatus(string AppName, ArrOptions Options, BinSettings? 
 }
 
 /// <summary>Talks to Radarr and Sonarr. Their bin settings are cached for a few minutes.</summary>
-public sealed class ArrService(IOptions<SalvarrOptions> options, IHttpClientFactory httpFactory, ILogger<ArrService> logger)
+public sealed class ArrService(IOptions<SalvarrOptions> options, IHttpClientFactory httpFactory, ILogger<ArrService> logger,
+    LiveSettings? live = null)
 {
     private static readonly TimeSpan CacheFor = TimeSpan.FromMinutes(10);
 
@@ -31,8 +32,8 @@ public sealed class ArrService(IOptions<SalvarrOptions> options, IHttpClientFact
 
             _statuses =
             [
-                await FetchAsync("Radarr", options.Value.Radarr),
-                await FetchAsync("Sonarr", options.Value.Sonarr)
+                await FetchAsync("Radarr", Radarr),
+                await FetchAsync("Sonarr", Sonarr)
             ];
             _fetchedUtc = DateTime.UtcNow;
             return _statuses;
@@ -105,7 +106,7 @@ public sealed class ArrService(IOptions<SalvarrOptions> options, IHttpClientFact
     /// <summary>Asks the app to rescan the movie or show in <paramref name="titleFolder"/>. Returns what happened, in words.</summary>
     public async Task<string> RescanAsync(LibraryOptions library, string titleFolder)
     {
-        var arrOptions = options.Value.ArrFor(library);
+        var arrOptions = library.Kind == LibraryKind.Series ? Sonarr : Radarr;
         var appName = library.Kind == LibraryKind.Series ? "Sonarr" : "Radarr";
         if (!arrOptions.IsConfigured)
         {
@@ -131,6 +132,17 @@ public sealed class ArrService(IOptions<SalvarrOptions> options, IHttpClientFact
             return $"{appName} could not be asked to rescan: {e.Message}";
         }
     }
+
+    /// <summary>Radarr as saved on the Settings page, else from the environment variables.</summary>
+    public ArrOptions Radarr => live?.Radarr ?? options.Value.Radarr;
+
+    public ArrOptions Sonarr => live?.Sonarr ?? options.Value.Sonarr;
+
+    /// <summary>The Test button: reads the bin settings with these values, without keeping them.</summary>
+    public Task<ArrStatus> TestAsync(string appName, ArrOptions arrOptions) => FetchAsync(appName, arrOptions);
+
+    /// <summary>Forget the cached statuses, after the Settings page saved new values.</summary>
+    public void Invalidate() => _fetchedUtc = DateTime.MinValue;
 
     private async Task<ArrStatus> FetchAsync(string appName, ArrOptions arrOptions)
     {

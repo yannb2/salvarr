@@ -17,6 +17,11 @@
     </ItemGroup>
 
     <ItemGroup>
+        <!-- Shared code (the Logs page's MemoryLog), a git submodule. -->
+        <ProjectReference Include="..\..\arrkit\src\Arrkit\Arrkit.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
         <InternalsVisibleTo Include="Salvarr.Tests" />
     </ItemGroup>
 

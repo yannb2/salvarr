@@ -1,125 +1,18 @@
-@inject ArrService Arr
-@inject RecycleBinService Bins
+@inject LiveSettings Settings
 
 <p class="text-body-secondary small">
     Radarr and Sonarr tell Salvarr how long they keep deleted files, and get a rescan after a restore.
-    The URL and API key come from the environment variables and need a restart to change.
+    What is saved here (in <span class="sv-path">@Settings.FilePath</span>) wins over the
+    <code>Salvarr__Radarr__…</code> and <code>Salvarr__Sonarr__…</code> environment variables, which only give the starting values.
 </p>
 
 <div class="row g-3">
-    @foreach (var (app, icon, example) in Apps)
-    {
-        var status = _statuses.FirstOrDefault(s => s.AppName == app);
-        var arr = app == "Sonarr" ? Bins.Options.Sonarr : Bins.Options.Radarr;
-        <div class="col-12 col-xl-6">
-            <div class="border rounded p-4 h-100">
-                <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
-                    <i class="bi @icon text-primary"></i>
-                    <h5 class="mb-0">@app</h5>
-                    @if (status is { IsConfigured: true })
-                    {
-                        <span class="badge @(status.Error == null ? "text-bg-success" : "text-bg-danger")">
-                            <i class="bi @(status.Error == null ? "bi-check-circle" : "bi-x-circle") me-1"></i>@(status.Error == null ? "Connected" : "Not connected")
-                        </span>
-                    }
-                    <span class="badge text-bg-secondary ms-auto" title="Where the values below come from">
-                        @(arr.IsConfigured ? "From environment variables" : "Not set up")
-                    </span>
-                </div>
-
-                <table class="table table-sm small mb-3">
-                    <tbody>
-                    <tr>
-                        <td class="text-body-secondary" style="width: 7rem">URL</td>
-                        <td class="sv-path">@(string.IsNullOrWhiteSpace(arr.Url) ? "—" : arr.Url)</td>
-                        <td class="text-end"><code>Salvarr__@(app)__Url</code></td>
-                    </tr>
-                    <tr>
-                        <td class="text-body-secondary">API key</td>
-                        <td>@Masked(arr.ApiKey)</td>
-                        <td class="text-end"><code>Salvarr__@(app)__ApiKey</code></td>
-                    </tr>
-                    @if (status?.Settings is { } bin)
-                    {
-                        <tr>
-                            <td class="text-body-secondary">Recycle bin</td>
-                            <td colspan="2">
-                                <span class="sv-path">@(string.IsNullOrWhiteSpace(bin.RecycleBinPath) ? "none" : bin.RecycleBinPath)</span>
-                                @if (_bins.Any(b => Retention.SamePath(b.Path, bin.RecycleBinPath)))
-                                {
-                                    <i class="bi bi-check-circle text-success ms-1" title="Listed by Salvarr"></i>
-                                }
-                                else if (!string.IsNullOrWhiteSpace(bin.RecycleBinPath))
-                                {
-                                    <span class="text-warning ms-1">
-                                        (not listed: it is outside the library mounts, or Salvarr sees it under another path)
-                                    </span>
-                                }
-                            </td>
-                        </tr>
-                        <tr>
-                            <td class="text-body-secondary">Keeps files</td>
-                            <td colspan="2">
-                                @(bin.CleanupDays > 0 ? $"{bin.CleanupDays} days" : "forever (0 days)")
-                                @if (bin.NextCleanupUtc is { } next)
-                                {
-                                    <span>; next cleanup @Format.TimeUntil(next) (@Format.LocalDate(next))</span>
-                                }
-                            </td>
-                        </tr>
-                    }
-                    </tbody>
-                </table>
-
-                @if (status is { IsConfigured: true, Error: { } error })
-                {
-                    <div class="small mb-3 text-danger">@error</div>
-                }
-                else if (!arr.IsConfigured)
-                {
-                    <p class="small text-body-secondary">
-                        Set both variables to show when @app empties its bin and to rescan after a restore.
-                        Example URL: <code>@example</code>. The key is in @app: Settings &gt; General &gt; Security.
-                    </p>
-                }
-
-                <button type="button" class="btn btn-outline-primary btn-sm" disabled="@(_busy || !arr.IsConfigured)" @onclick="Test">
-                    @if (_busy)
-                    {
-                        <span class="spinner-border spinner-border-sm me-1"></span>
-                    }
-                    <i class="bi bi-plug me-1"></i>Test
-                </button>
-            </div>
-        </div>
-    }
+    <div class="col-12 col-xl-6">
+        <ArrCard App="Radarr" Key="@LiveSettings.RadarrKey" Icon="bi-film" Example="http://radarr:7878"
+                 Use="Used for the time left on files in Radarr's bin, and to rescan a movie after a restore."/>
+    </div>
+    <div class="col-12 col-xl-6">
+        <ArrCard App="Sonarr" Key="@LiveSettings.SonarrKey" Icon="bi-tv" Example="http://sonarr:8989"
+                 Use="Used for the time left on files in Sonarr's bin, and to rescan a show after a restore."/>
+    </div>
 </div>
-
-@code {
-    private static readonly (string App, string Icon, string Example)[] Apps =
-    [
-        ("Radarr", "bi-film", "http://radarr:7878"),
-        ("Sonarr", "bi-tv", "http://sonarr:8989")
-    ];
-
-    private IReadOnlyList<ArrStatus> _statuses = [];
-    private IReadOnlyList<RecycleBin> _bins = [];
-    private bool _busy;
-
-    protected override async Task OnInitializedAsync()
-    {
-        _statuses = await Arr.GetStatusesAsync();
-        _bins = (await Bins.GetAsync(TimeSpan.FromMinutes(5))).Bins;
-    }
-
-    private async Task Test()
-    {
-        _busy = true;
-        _statuses = await Arr.GetStatusesAsync(refresh: true);
-        _busy = false;
-    }
-
-    /// <summary>Never the whole key on the page: its last four characters are enough to tell keys apart.</summary>
-    private static string Masked(string key) =>
-        string.IsNullOrWhiteSpace(key) ? "—" : key.Length <= 4 ? "••••" : "••••" + key[^4..];
-}
