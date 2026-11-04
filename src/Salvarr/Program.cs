@@ -1,8 +1,8 @@
 using System.Globalization;
+using Arrkit.Logging;
 using Salvarr.Arr;
 using Salvarr.Components;
 using Salvarr.Library;
-using Salvarr.Logging;
 using Salvarr.Media;
 using Salvarr.Options;
 using Salvarr.Tools;
@@ -23,6 +23,7 @@ builder.Services.AddOptions<SalvarrOptions>()
     .PostConfigure(o => o.WithDefaults());
 
 builder.Services.AddHttpClient("arr", client => client.Timeout = TimeSpan.FromSeconds(15));
+builder.Services.AddSingleton<LiveSettings>();
 builder.Services.AddSingleton<ArrService>();
 builder.Services.AddSingleton<MediaProbe>();
 builder.Services.AddSingleton<RecycleBinService>();

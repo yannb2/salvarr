@@ -50,10 +50,11 @@ file to where it was (and ask Radarr or Sonarr to rescan) or delete it for good.
   than N days ago.
 - **Settings.** Three tabs, as in Ripparr and Muxarr: Libraries (paths, bin
   names, what is read from each file, whether changes are on), Integrations
-  (Radarr and Sonarr: URL, key, how long they keep files, a Test button) and
+  (Radarr and Sonarr: URL, key, Test and Save, and how long they keep files) and
   Status (the bins found and the tool versions). The old `/status` link opens
-  the Status tab. Values come from the environment variables.
-- **Logs.** The app's last 2000 log lines, with a level filter, search and
+  the Status tab. What Integrations saves goes in `/config/settings.json` and wins
+  over the environment variables; the rest comes from the environment.
+- **Logs.** The app's last 2000 log lines (arrkit's `MemoryLog`, shared with Ripparr and Specarr), with a level filter, search and
   exceptions on a click.
 - **Light or dark** from the sidebar button (moon and Dark, sun and Light),
   kept in the browser.
@@ -87,7 +88,8 @@ Files in other bins (a Samba bin, say) show no time.
 
 ## Running it
 
-Add the service to the compose file (see [compose.example.yaml](compose.example.yaml)):
+Add the service to the compose file (see [compose.example.yaml](compose.example.yaml)). Before the
+first start, make its config folder: `mkdir -p /config/salvarr && chown 1000:1000 /config/salvarr`.
 
 ```yaml
   salvarr:
@@ -104,6 +106,7 @@ Add the service to the compose file (see [compose.example.yaml](compose.example.
     ports:
       - 8184:8184
     volumes:
+      - /config/salvarr:/config              # what the Settings page saves
       - /movies:/movies:ro
       - /tv:/tv:ro
     restart: unless-stopped
@@ -159,6 +162,7 @@ is out; the build on that branch is the test. It needs Settings > Actions > Gene
 `ffprobe`, `mediainfo` and [`dovi_tool`](https://github.com/quietvoid/dovi_tool) must be on the PATH.
 
 ```bash
+git submodule update --init                   # arrkit, the shared code
 dotnet test                                   # unit tests
 dotnet run --project src/Salvarr              # http://localhost:8184
 ```

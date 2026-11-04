@@ -44,14 +44,17 @@ public class SalvarrOptions
     /// </summary>
     public bool AllowChanges { get; set; }
 
+    /// <summary>
+    /// Where Salvarr keeps what the Settings page saves (settings.json), as the other apps keep
+    /// theirs in /config. Mount /config/salvarr here.
+    /// </summary>
+    public string ConfigFolder { get; set; } = "/config";
+
     /// <summary>Radarr, for its recycle bin settings and to rescan a movie after a restore.</summary>
     public ArrOptions Radarr { get; set; } = new();
 
     /// <summary>Sonarr, the same for shows.</summary>
     public ArrOptions Sonarr { get; set; } = new();
-
-    /// <summary>The Radarr or Sonarr settings that go with a library.</summary>
-    public ArrOptions ArrFor(LibraryOptions library) => library.Kind == LibraryKind.Series ? Sonarr : Radarr;
 
     /// <summary>Looking for newer tool versions on the Tools page (never installs anything).</summary>
     public UpdateCheckOptions Updates { get; set; } = new();
@@ -105,6 +108,7 @@ public class ArrOptions
 
     public string ApiKey { get; set; } = "";
 
+    [System.Text.Json.Serialization.JsonIgnore]
     public bool IsConfigured => !string.IsNullOrWhiteSpace(Url) && !string.IsNullOrWhiteSpace(ApiKey);
 }
 

@@ -61,8 +61,12 @@ FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
 COPY global.json ./
 COPY src/Salvarr/Salvarr.csproj src/Salvarr/
+# arrkit is a git submodule: CI checks it out (submodules: true); locally run
+# "git submodule update --init" before building.
+COPY arrkit/src/Arrkit/Arrkit.csproj arrkit/src/Arrkit/
 RUN dotnet restore src/Salvarr/Salvarr.csproj
 COPY src/ src/
+COPY arrkit/src/ arrkit/src/
 RUN dotnet publish src/Salvarr/Salvarr.csproj -c Release -o /app --no-restore
 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0
@@ -85,6 +89,10 @@ ENV SALVARR_PIN_FFPROBE=${FFMPEG_VERSION} \
     ASPNETCORE_HTTP_PORTS=8184 \
     TZ=Etc/UTC
 EXPOSE 8184
+
+# What the Settings page saves (settings.json) lives in /config, as in the other apps.
+RUN mkdir -p /config && chown $APP_UID /config
+VOLUME /config
 
 # Read-only: Salvarr never writes to the library. Compose can pick the user (user: 1000:1000).
 USER $APP_UID

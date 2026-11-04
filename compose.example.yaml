@@ -1,4 +1,5 @@
 # Example service for the media VM's compose.yaml (/config/compose/compose.yaml).
+# Before the first start: mkdir -p /config/salvarr && chown 1000:1000 /config/salvarr
 services:
   salvarr:                                   # browse the .recycle folders, compare with the library
     image: ghcr.io/yannb2/salvarr:dev
@@ -7,6 +8,7 @@ services:
     environment:
       TZ: America/Toronto
       # Radarr and Sonarr: time left before they empty a file, and a rescan after a restore.
+      # Starting values: what is saved on the Settings page wins.
       Salvarr__Radarr__Url: http://radarr:7878
       Salvarr__Radarr__ApiKey: ${RADARR_API_KEY}
       Salvarr__Sonarr__Url: http://sonarr:8989
@@ -25,6 +27,7 @@ services:
     ports:
       - 8184:8184
     volumes:
+      - /config/salvarr:/config              # what the Settings page saves (settings.json)
       - /movies:/movies:ro                   # read-only until AllowChanges is on
       - /tv:/tv:ro
     restart: unless-stopped
