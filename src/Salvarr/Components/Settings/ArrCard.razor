@@ -59,7 +59,7 @@
             </tbody>
         </table>
     }
-    else if (_status is { IsConfigured: true, Error: { } error })
+    else if (_status is { IsConfigured: true, Error: { } error } && _message == null)
     {
         <div class="small mb-3 text-danger">@error</div>
     }
@@ -124,13 +124,23 @@
     {
         _busy = true;
         _message = null;
-        _status = await Arr.TestAsync(App, Trimmed());
-        if (!_status.IsConfigured)
+        StateHasChanged();
+        try
         {
-            (_message, _messageOk) = ("Fill in the URL and the API key.", false);
+            _status = await Arr.TestAsync(App, Trimmed());
+            (_message, _messageOk) = _status switch
+            {
+                { IsConfigured: false } => ("Fill in the URL and the API key.", false),
+                { Error: { } error } => ($"Test failed: {error}", false),
+                _ => (Changed()
+                    ? $"Connected to {App} at {DateTime.Now:HH:mm:ss}. Press Save to keep these values."
+                    : $"Connected to {App} at {DateTime.Now:HH:mm:ss}.", true)
+            };
         }
-
-        _busy = false;
+        finally
+        {
+            _busy = false;
+        }
     }
 
     private async Task Save()
@@ -154,6 +164,14 @@
         Arr.Invalidate();
         _status = (await Arr.GetStatusesAsync(refresh: true)).FirstOrDefault(s => s.AppName == App);
         _ = Bins.RescanAsync(refreshArr: true);
+    }
+
+    /// <summary>The boxes differ from what Salvarr uses now (saved or environment values).</summary>
+    private bool Changed()
+    {
+        var current = Key == LiveSettings.SonarrKey ? Arr.Sonarr : Arr.Radarr;
+        var typed = Trimmed();
+        return typed.Url != current.Url || typed.ApiKey != current.ApiKey;
     }
 
     private ArrOptions Trimmed() => new() { Url = _arr.Url.Trim(), ApiKey = _arr.ApiKey.Trim() };
