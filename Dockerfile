@@ -82,12 +82,15 @@ COPY --from=dovi /out/dovi_tool /usr/local/bin/dovi_tool
 WORKDIR /app
 COPY --from=build /app ./
 
+# UTF-8 locale: in the plain C locale tools garble non-ASCII file names ("Me²").
 # The pins show on the Tools page next to what each tool reports and the newest upstream version.
 ENV SALVARR_PIN_FFPROBE=${FFMPEG_VERSION} \
     SALVARR_PIN_MEDIAINFO=${MEDIAINFO_VERSION} \
     SALVARR_PIN_DOVI_TOOL=${DOVI_TOOL_VERSION} \
     ASPNETCORE_HTTP_PORTS=8184 \
-    TZ=Etc/UTC
+    TZ=Etc/UTC \
+    LANG=C.UTF-8 \
+    LC_ALL=C.UTF-8
 EXPOSE 8184
 
 # What the Settings page saves (settings.json) lives in /config, as in the other apps.
